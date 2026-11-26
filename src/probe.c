@@ -1782,6 +1782,99 @@ static void choose_tsc(void) {
 /* sotc: SSE4a and red-zone patches of the eboot (gpu/sotc), described by scripts/sotc_cpu.py. */
 #define SOTC_TRAMPOLINE_SIZE (UINT64_C(16) << 20)
 #ifndef _WIN32
+/* sotc (Linux): SOTC_PIN=1, the Windows thread_placement above on Linux, opt-in. Same policy: the
+ * GPU draw, command processor and recorder threads each get one logical CPU of cores 1-3 with its
+ * SMT sibling left empty, every other thread of the process the remaining cores; released while
+ * the game shows under 25 frames a second (loading screens use every thread). Off by default on
+ * Linux: Ryzen 5 5500 (6 cores / 12 threads, GTX 1070), attract demo, interleaved A/B runs: +4.5%
+ * with the desktop busy (33.2 -> 34.7 FPS) but -5% on an idle desktop (42.3 -> 40.2): the four
+ * BPE job workers then share 3 cores, and the Linux scheduler spreads the threads well enough.
+ * Thread names are cut at 15 bytes on Linux ("shadPS4:GpuComm"), hence the shorter matches. */
+#include <dirent.h>
+#include <pthread.h>
+#include <sched.h>
+#include <time.h>
+static int core_of_cpu(int cpu) {
+    char path[96]; int lowest=-1;
+    snprintf(path,sizeof(path),"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list",cpu);
+    FILE *f=fopen(path,"r");
+    if (!f) return cpu;
+    if (fscanf(f,"%d",&lowest)!=1) lowest=cpu; /* "0,6" or "0-1": the first is the core's lowest */
+    fclose(f);
+    return lowest;
+}
+static void *thread_placement_linux(void *unused) {
+    (void)unused;
+    const char *mode=getenv("SOTC_PIN");
+    if (!mode || mode[0]!='1') return NULL;
+    cpu_set_t process_mask; CPU_ZERO(&process_mask);
+    if (sched_getaffinity(0,sizeof(process_mask),&process_mask)) return NULL;
+    /* Cores in order of their lowest logical CPU; each one's logical CPUs. */
+    int core_first[64], core_count=0, smt=1;
+    cpu_set_t core_cpus[64];
+    for (int cpu=0; cpu<CPU_SETSIZE && core_count<64; ++cpu) {
+        if (!CPU_ISSET(cpu,&process_mask)) continue;
+        const int first=core_of_cpu(cpu);
+        int c=0;
+        while (c<core_count && core_first[c]!=first) ++c;
+        if (c==core_count) { core_first[c]=first; CPU_ZERO(&core_cpus[c]); ++core_count; }
+        CPU_SET(cpu,&core_cpus[c]);
+    }
+    for (int c=0;c<core_count;++c) if (CPU_COUNT(&core_cpus[c])<2) smt=0;
+    (void)smt; /* opt-in: no SMT / core-count gate beyond room for the three threads */
+    if (core_count<4) return NULL;
+    cpu_set_t pinned[3], others=process_mask;
+    for (int i=0;i<3;++i) {
+        CPU_ZERO(&pinned[i]);
+        for (int cpu=0; cpu<CPU_SETSIZE; ++cpu)
+            if (CPU_ISSET(cpu,&core_cpus[i+1])) { CPU_SET(cpu,&pinned[i]); break; }
+        CPU_XOR(&others,&others,&core_cpus[i+1]);
+    }
+    if (!CPU_COUNT(&others)) return NULL;
+    static const char *wanted[3]={"GpuDraw","GpuComm","GpuReco"};
+    const pid_t self=(pid_t)syscall(SYS_gettid);
+    uint64_t flips_before=bbgpu_flip_count();
+    struct timespec before; clock_gettime(CLOCK_MONOTONIC,&before);
+    int placed_mode=-1, told=0;
+    for (;;) {
+        sleep(told ? 1 : 2);
+        const uint64_t flips_now=bbgpu_flip_count();
+        struct timespec now; clock_gettime(CLOCK_MONOTONIC,&now);
+        const double ms=(now.tv_sec-before.tv_sec)*1000.0+(now.tv_nsec-before.tv_nsec)/1e6;
+        const double fps=(double)(flips_now-flips_before)*1000.0/(ms>0 ? ms : 1);
+        flips_before=flips_now; before=now;
+        const int playing=fps>=25.0;
+        if (playing==placed_mode && playing==0) continue; /* already released */
+        placed_mode=playing;
+        DIR *dir=opendir("/proc/self/task");
+        if (!dir) continue;
+        int placed=0;
+        for (struct dirent *e; (e=readdir(dir));) {
+            const pid_t tid=(pid_t)atoi(e->d_name);
+            if (tid<=0 || tid==self) continue;
+            char path[64], name[32]="";
+            snprintf(path,sizeof(path),"/proc/self/task/%d/comm",(int)tid);
+            FILE *f=fopen(path,"r");
+            if (f) { if (!fgets(name,sizeof(name),f)) name[0]=0; fclose(f); }
+            const cpu_set_t *mask=playing ? &others : &process_mask;
+            for (int i=0;i<3;++i) if (strstr(name,wanted[i])) { if (playing) mask=&pinned[i]; ++placed; }
+            sched_setaffinity(tid,sizeof(*mask),mask);
+        }
+        closedir(dir);
+        if (!told && playing && placed==3) {
+            told=1;
+            int at[3]={0,0,0};
+            for (int i=0;i<3;++i) for (int cpu=0;cpu<CPU_SETSIZE;++cpu) if (CPU_ISSET(cpu,&pinned[i])) { at[i]=cpu; break; }
+            unsigned long long rest=0;
+            for (int cpu=0;cpu<64;++cpu) if (CPU_ISSET(cpu,&others)) rest|=1ull<<cpu;
+            fprintf(stderr,"Runtime: thread placement: GPU draw / command processor / recorder on logical CPUs %d, %d, %d (own cores); the rest on mask 0x%llx\n",
+                    at[0],at[1],at[2],rest);
+        }
+    }
+    return NULL;
+}
+#endif
+#ifndef _WIN32
 /* sotc (Linux): counterparts of the Windows exception paths above.
  * The image below 2 GiB: Shadow of the Colossus packs pointers to its static data into 31 bits.
  * The range is claimed at the start of main, top down from 2 GiB so the non-PIE loader's brk
@@ -2301,6 +2394,13 @@ int main(int argc, char **argv) {
     struct sigaction alarm_action = {0}; alarm_action.sa_sigaction = watchdog; alarm_action.sa_flags = SA_SIGINFO;
     sigemptyset(&alarm_action.sa_mask); sigaction(SIGALRM, &alarm_action, NULL);
     alarm(timeout_seconds); /* 0 disables the watchdog */
+    {
+        pthread_t placement;
+        if (!pthread_create(&placement,NULL,thread_placement_linux,NULL)) {
+            pthread_setname_np(placement,"sotc:placement");
+            pthread_detach(placement);
+        }
+    }
 #endif
     FILE *f = fopen(argv[1], "rb");
     if (!f) fail("cannot open boot file; run prepare.py first");
