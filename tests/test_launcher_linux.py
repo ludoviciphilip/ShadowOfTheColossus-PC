@@ -1,6 +1,8 @@
-"""Linux launcher behavior: SDL3 display parsing, refresh rate, monitor selection, and native texts."""
+"""Linux launcher behavior: SDL3 display parsing, refresh rate, monitor selection, memory/sysctl checks, and .desktop entries."""
+from pathlib import Path
 from paths import ROOT
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -107,6 +109,49 @@ class LinuxDisplayTests(unittest.TestCase):
         pt, en = launcher.AUDIO_CHANNELS[0][1]
         self.assertNotIn('Windows', pt)
         self.assertNotIn('Windows', en)
+
+    def test_linux_free_memory_gb(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            meminfo = Path(tmp) / 'meminfo'
+            meminfo.write_text('MemTotal:       16384000 kB\nMemAvailable:    6000000 kB\nSwapFree:        4000000 kB\n')
+            self.assertAlmostEqual(launcher.linux_free_memory_gb(meminfo), 10.0)
+
+            meminfo.write_text('MemTotal:       16384000 kB\nMemAvailable:    5500000 kB\n')
+            self.assertAlmostEqual(launcher.linux_free_memory_gb(meminfo), 5.5)
+
+            meminfo.write_text('MemTotal:       16384000 kB\n')
+            self.assertIsNone(launcher.linux_free_memory_gb(meminfo))
+            self.assertIsNone(launcher.linux_free_memory_gb(Path(tmp) / 'missing'))
+
+    def test_linux_max_map_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            mmc = Path(tmp) / 'max_map_count'
+            mmc.write_text('65530\n')
+            self.assertEqual(launcher.linux_max_map_count(mmc), 65530)
+            self.assertLess(launcher.linux_max_map_count(mmc), launcher.MIN_LINUX_MAX_MAP_COUNT)
+
+            mmc.write_text('1048576\n')
+            self.assertEqual(launcher.linux_max_map_count(mmc), 1048576)
+
+            mmc.write_text('not-a-number\n')
+            self.assertIsNone(launcher.linux_max_map_count(mmc))
+            self.assertIsNone(launcher.linux_max_map_count(Path(tmp) / 'missing'))
+
+    def test_linux_desktop_entry(self):
+        port = Path('/opt/My Games/SotC-PC')
+        src_play = launcher._linux_desktop_entry(True, '', '/usr/bin/python3', port, None)
+        self.assertIn('[Desktop Entry]', src_play)
+        self.assertIn('Name=Shadow of the Colossus (Play)', src_play)
+        self.assertIn("Exec=/usr/bin/python3 '/opt/My Games/SotC-PC/launcher/sotc_launcher_win.py' --play", src_play)
+        self.assertIn('Path=/opt/My Games/SotC-PC', src_play)
+        self.assertIn('Icon=/opt/My Games/SotC-PC/launcher/sotc.png', src_play)
+        self.assertIn('Categories=Game;', src_play)
+
+        appimage_launcher = launcher._linux_desktop_entry(
+            False, '/home/user/Apps/SotC PC.AppImage', '/usr/bin/python3', port, '/tmp/icon0.png')
+        self.assertIn('Name=Shadow of the Colossus\n', appimage_launcher)
+        self.assertIn("Exec='/home/user/Apps/SotC PC.AppImage' --launcher", appimage_launcher)
+        self.assertIn('Icon=/tmp/icon0.png', appimage_launcher)
 
 
 if __name__ == '__main__':
