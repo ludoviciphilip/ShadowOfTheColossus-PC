@@ -1,8 +1,8 @@
-# Shadow of the Colossus — PC native port · v0.78
+# Shadow of the Colossus — PC native port · v0.79.0 (Linux Edition)
 
 <a href="https://recomplauncher.com/game/shadowofthecolossus-pc"><picture><source media="(prefers-color-scheme: dark)" srcset="https://recomplauncher.com/assets/press/launcher/badge-light.svg"><img alt="Get it on RecompLauncher" src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" height="48"></picture></a>
 
-**[Linux](#linux)** · [Releases](../../releases) · [Changelog](CHANGELOG.md)
+**[Linux](#linux)** · **[Building on Linux](#building)** · [Releases](../../releases) · [Changelog](CHANGELOG.md) · [Upstream (`AjncSystem`)](https://github.com/AjncSystem/ShadowOfTheColossus-PC)
 
 > [!CAUTION]
 > *⚠️*No game or Sony files are included.** You need your own game dump. Since v0.75 the sound
@@ -19,15 +19,18 @@
 **Status: the game can be finished from start to end** (v0.60.3: played through the last
 colossus, the ending and the credits, with high quality textures, PS4 Pro mode and 60 FPS on).
 
-A native Windows port of the PS4 **Shadow of the Colossus** (Bluepoint, 2018; CUSA08809 EU 1.01 or
-CUSA08034 US 1.00) for **Windows 10/11**. The game's own x86-64 code runs directly on the PC's CPU and the PS4 GPU
+A native PC port of the PS4 **Shadow of the Colossus** (Bluepoint, 2018; CUSA08809 EU 1.01 or
+CUSA08034 US 1.00) for **Linux (x86-64)** and **Windows 10/11**. The game's own x86-64 code runs directly on the PC's CPU and the PS4 GPU
 is translated to Vulkan. It is not a full emulator: it is a loader with the system functions the
 game needs, in the style of [bloodborne_pc](https://github.com/Supermedo/bloodborne_pc).
+
+This fork builds on [AjncSystem/ShadowOfTheColossus-PC](https://github.com/AjncSystem/ShadowOfTheColossus-PC) with a dedicated **Linux & Steam Deck** focus — automated Ubuntu 24.04 AppImage & `.tar.gz` releases, NVIDIA/Wayland & SteamOS support, PGO builds, HDR10, DualShock 4 / DualSense Lightbar + Gyro, GameMode/MangoHud integration, and one-click Steam library setup — while keeping full Windows compatibility and sending clean fixes upstream.
 
 ### What's new
 
 | Version | Improvements and fixes |
 |---|---|
+| **0.79.0** | 🐧 **Linux Edition & CI releases**: automated Ubuntu 24.04 (glibc 2.39+) `AppImage` and portable `.tar.gz` builds via GitHub Actions, verified on NVIDIA (GTX 1070, Arch/CachyOS, Wayland/Hyprland) and AMD (Fedora). 🎮 **Steam Deck & Steam integration**: Gamescope 800p preset, automatic Gaming Mode `--play` launch, Freedesktop `.desktop` shortcuts, and one-click **Add to Steam** (`shortcuts.vdf`) with cover/hero/icon artwork extracted from your dump. 💡 **DualShock 4 / DualSense**: real Lightbar (`scePadSetLightBar`) and Gyro/Accelerometer motion sensors (`SDL_SENSOR_GYRO` / `SDL_SENSOR_ACCEL`). 🖥️ **Launcher & display upgrades**: native SDL3 monitor/refresh-rate detection, FG-aware dynamic FPS cap, Light mode pacing, VRAM estimator/warnings, Feral GameMode (`gamemoderun`) & MangoHud (`mangohud`) toggles, and `vm.max_map_count` / `userfaultfd` diagnostics. ⚡ **Performance, HDR & cache**: GCC PGO training script (`tools/pgo_train.sh`), Linux HDR10 (`VK_EXT_hdr_metadata`), screensaver/DPMS inhibit, and isolated self-healing `_nolod` shader cache. |
 | **0.78** | ⚡ **Lighter draw thread** (Lukto02, from the Lucas-blip-png fork): draws that repeat the same state no longer hash their bind key or copy the shader data every time, and descriptor reuse got its safety review. ⚡ **GPU threads on their own cores on SMT CPUs with 6+ cores** (#464, SotC-Work; Ryzen 5 5600X +6-11%). 🧯 **Running out of video memory no longer closes the game right away** (#293, Lucas-blip-png). A rare allocator crash (`0x499cc`) avoided. |
 | **0.77** | ⚡ **No long hitches after loading a save on SSDs** (the archive read-ahead now runs only on hard disks). 🌑 **Soft shadows/AO around Wander no longer flicker on AMD** (#461, marko0905; the shader cache is rebuilt once). ⚙️ **Settings kept in read-only folders** (#467). ⚡ **Fewer hitches at area changes**: textures the CPU still copied (~13 GB a session) are gathered by the GPU (area entry 7-9 frames over 50 ms → 1 on the test route); compute shaders are translated before they are needed; the shader cache is no longer cleared by every update; the dynamic FPS no longer holds the lower step for 10-15 s after a short dip. 🖥️ Dynamic FPS steps that divide 75/100/165 Hz screens (#454); texture pool reserve off above 1080p, 21:9 included (#455). |
 | **0.76.2** | 🛠️ **Intel CPUs: the hero falling through the floor and the crash at the title screen fixed** (since 0.76): the CPU patches lost the game's function list once the linked modules' lists were read, so a stack-protection patch was not applied. |
@@ -163,37 +166,35 @@ and only DLC of the same region is used.
 ### Linux
 
 A native Linux port, no Wine or Proton: the same game and video core, with the runtime using
-Linux signals in place of Windows exceptions.
+`userfaultfd` or Linux `SIGSEGV` signals in place of Windows exceptions.
 
 | GPU | Status |
 |---|---|
-| **AMD** | Works (tested on Fedora): the game starts and renders the intro. |
-| **NVIDIA** | **Needs testing.** |
+| **NVIDIA** | **Works** (tested on GTX 1070, Arch/CachyOS, Wayland/Hyprland): gameplay, launcher, Lightbar/Gyro and AppImage verified. |
+| **AMD** | **Works** (tested on Fedora): the game starts and renders the intro. |
 | **Intel** | **Needs testing.** |
 
-On NVIDIA or Intel, please open an issue with the result, your GPU model, driver version and
-`~/.local/share/sotc-pc/last_run.log`.
+On Intel or if you hit a GPU-specific issue, please open an issue with your GPU model, driver version and
+`~/.local/share/sotc-pc/user/last_run.log`.
 
-**Usage (AppImage):**
+**Download and usage (AppImage or portable `.tar.gz` from [Releases](../../releases)):**
 
 ```
 chmod +x SotC-PC-*-linux-x86_64.AppImage
-./SotC-PC-*-linux-x86_64.AppImage            # the launcher: settings, then Play
-./SotC-PC-*-linux-x86_64.AppImage --play     # the game with the launcher's settings (Steam launch options)
+./SotC-PC-*-linux-x86_64.AppImage            # launcher: settings, then Play
+./SotC-PC-*-linux-x86_64.AppImage --play     # game directly with saved settings (Steam launch options)
+./SotC-PC-*-linux-x86_64.AppImage --launcher # always open the launcher (even inside Steam Gaming Mode)
 ./SotC-PC-*-linux-x86_64.AppImage --setup    # without the launcher: picks the game and sound folders again
 ```
 
-- The AppImage opens the same launcher as on Windows (FPS, PS4 Pro mode, upscaler, textures,
-  controls, saves...), with its own Python and Tk inside: nothing to install. Without a display
-  (a terminal, SSH) it starts the game from `sotc.ini` as before. A `sotc.ini` written by hand
-  is read into the launcher on its first start.
-- Requirements: x86-64 Linux with glibc 2.38 or newer (Fedora 39+, Ubuntu 24.04+) and a Vulkan
-  1.3 driver (Mesa or NVIDIA). Works on Wayland (the launcher through XWayland) and X11.
-- The sound modules are optional (the built-in mixer plays the sound); when shadPS4's folder has them (`~/.local/share/shadPS4/sys_modules`) they are found automatically.
-- Settings, saves and the logs live in `~/.local/share/sotc-pc/`. The `sotc.ini` options
-  (resolution, FSR, fullscreen, language, 60 FPS, controls) are listed in
-  [docs/sotc/LINUX.md](docs/sotc/LINUX.md); the launcher's settings take precedence over them.
-- Building and making the AppImage: [Building](#building).
+Or extract `SotC-PC-*-linux-x86_64.tar.gz` and run `./sotc.sh` (`--play`, `--launcher`, `--setup`).
+
+- **Everything bundled:** the AppImage and `.tar.gz` open the same Tkinter launcher as on Windows (FPS, PS4 Pro mode, upscaler, textures, controls, saves...), with their own Python, Tcl/Tk, Pillow, and SDL3 inside. Without a display (terminal, SSH) they start the game from `sotc.ini`.
+- **Requirements:** x86-64 Linux with glibc **2.39 or newer** (Ubuntu 24.04+, Fedora 40+, Arch/CachyOS, SteamOS 3+) and a **Vulkan 1.3** driver (Mesa or NVIDIA). Works on Wayland and X11, and inhibits screen savers/DPMS while playing.
+- **Steam & Steam Deck ready:** detects Gamescope/Steam Gaming Mode (`--play` automatically on launch unless `--launcher` is passed), includes a **Steam Deck (800p)** preset, creates `.desktop` entries, and has a one-click **Add to Steam** button (**Advanced** tab) that writes `shortcuts.vdf` and copies cover/hero/icon artwork from your dump (`sce_sys/`).
+- **Linux tools & controllers:** optional **Feral GameMode** (`gamemoderun`) and **MangoHud** toggles in **Advanced → Linux**, native **DualShock 4 / DualSense** lightbar and motion sensors (`SOTC_LIGHTBAR=0` disables LED updates), and automatic `vm.max_map_count` / free memory / `userfaultfd` diagnostics in the launcher.
+- **Sound & data:** the built-in mixer plays the sound without Sony `.sprx` modules (`~/.local/share/shadPS4/sys_modules` is still picked up if present). Settings, saves, shader caches and logs live in `~/.local/share/sotc-pc/`. See [docs/sotc/LINUX.md](docs/sotc/LINUX.md) for all `sotc.ini` options and environment variables.
+- **Building from source and PGO:** see [Building](#building).
 
 ### Launcher features
 
@@ -235,6 +236,24 @@ bibliotecas para a AppImage / drags ~100 libraries into the AppImage. O
 `packaging/linux/build_ffmpeg.sh` compila um FFmpeg mínimo / builds a minimal one into
 `out/ffmpeg`, que o / which `build.sh` usa sozinho / picks up by itself.
 
+**Arch / CachyOS:**
+
+```
+sudo pacman -S --needed base-devel cmake ninja pkgconf python tk python-pillow git nasm patchelf \
+    vulkan-headers vulkan-icd-loader glslang vulkan-memory-allocator sdl3 \
+    fmt boost tsl-robin-map xxhash zydis libx11
+git submodule update --init --recursive
+bash packaging/linux/build_ffmpeg.sh        # out/ffmpeg (once)
+./build.sh                                  # auto-picks ~/.local/opt/sotc-deps if present
+./sotc.sh                                   # launch (launcher or headless via sotc.ini)
+```
+
+Optional **PGO build** (trains on your own gameplay session with GCC profile-guided optimization and LTO):
+
+```
+bash tools/pgo_train.sh                     # play 1-3 minutes, then close to rebuild with PGO
+```
+
 **Fedora (43+):**
 
 ```
@@ -248,20 +267,16 @@ bash packaging/linux/build_ffmpeg.sh        # out/ffmpeg (uma vez / once)
 bash packaging/linux/build_appimage.sh      # dist/SotC-PC-<versão>-linux-x86_64.AppImage
 ```
 
-**Ubuntu 24.04:** o GCC 13, o SDL e os headers do Vulkan do sistema são antigos / the system
-GCC 13, SDL and Vulkan headers are too old:
+**Ubuntu 24.04:** system GCC 13, SDL, Vulkan headers, VMA (`3.0.1`, lacks `vmaGetAllocationInfo2`), and Zydis packages are too old; build **SDL3 (3.2.x)**, **Vulkan-Headers**, **VulkanMemoryAllocator (v3.3.0)**, **robin-map**, and **Zydis** from source into a prefix (e.g. `~/.local/opt/sotc-deps`, which `build.sh` picks up automatically — see [`.github/workflows/linux-appimage.yml`](.github/workflows/linux-appimage.yml)):
 
 ```
 sudo apt install build-essential gcc-14 g++-14 cmake ninja-build pkg-config python3 python3-tk python3-pil python3-pil.imagetk git nasm \
-    patchelf libvulkan-dev glslang-tools libvulkan-memory-allocator-dev libfmt-dev libboost-dev \
-    libxxhash-dev libzydis-dev libx11-dev libxext-dev libwayland-dev libxkbcommon-dev \
+    patchelf libvulkan-dev glslang-tools libfmt-dev libboost-dev \
+    libxxhash-dev libx11-dev libxext-dev libwayland-dev libxkbcommon-dev \
     libpulse-dev libasound2-dev
-# SDL3, Vulkan-Headers e / and robin-map da fonte / from source (cmake + install):
-#   https://github.com/libsdl-org/SDL (release-3.2.x), https://github.com/KhronosGroup/Vulkan-Headers,
-#   https://github.com/Tessil/robin-map
 bash packaging/linux/build_ffmpeg.sh
-CC=gcc-14 CXX=g++-14 CPATH=/usr/local/include ./build.sh
-bash packaging/linux/build_appimage.sh
+CC=gcc-14 CXX=g++-14 ./build.sh
+bash packaging/linux/build_appimage.sh      # builds both .AppImage and .tar.gz
 ```
 
 **NixOS:** `./build.sh` entra sozinho no / enters `shell.nix` by itself (FFmpeg do Nix / Nix's FFmpeg).
@@ -281,6 +296,7 @@ Packaging refuses any `.sprx`/`.prx`: Sony firmware never goes into the package.
 
 ## Credits
 
+- [AjncSystem/ShadowOfTheColossus-PC](https://github.com/AjncSystem/ShadowOfTheColossus-PC): upstream SotC native PC port, launcher, custom Vulkan/audio fixes, and releases.
 - [bloodborne_pc](https://github.com/Supermedo/bloodborne_pc) (Supermedo, deadinside28 and
   forks): loader, native runtime and launcher. Original README: [docs/bbport](docs/bbport/README.md).
   The launcher's look (`launcher/sotc_theme.py`) comes from its 1.9 launcher theme, with the
