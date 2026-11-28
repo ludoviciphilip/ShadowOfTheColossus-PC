@@ -153,6 +153,37 @@ class LinuxDisplayTests(unittest.TestCase):
         self.assertIn("Exec='/home/user/Apps/SotC PC.AppImage' --launcher", appimage_launcher)
         self.assertIn('Icon=/tmp/icon0.png', appimage_launcher)
 
+    def test_linux_userfaultfd_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / 'unprivileged_userfaultfd'
+            p.write_text('1\n')
+            self.assertIs(launcher.linux_userfaultfd_status(p), True)
+            p.write_text('0\n')
+            self.assertIs(launcher.linux_userfaultfd_status(p), False)
+            p.write_text('invalid\n')
+            self.assertIsNone(launcher.linux_userfaultfd_status(p))
+            self.assertIsNone(launcher.linux_userfaultfd_status(Path(tmp) / 'missing'))
+
+    def test_linux_run_command_wrappers(self):
+        with mock.patch.object(launcher, 'IS_WINDOWS', False), \
+             mock.patch.object(launcher, 'FROZEN', False):
+            base = launcher.run_command(launcher.APP_DEFAULTS)
+            self.assertEqual(len(base), 2)
+
+            with mock.patch.object(launcher.shutil, 'which', side_effect=lambda n: f'/usr/bin/{n}'):
+                gm = launcher.run_command({**launcher.APP_DEFAULTS, 'linux_gamemode': True})
+                self.assertEqual(gm, ['/usr/bin/gamemoderun', *base])
+
+                mh = launcher.run_command({**launcher.APP_DEFAULTS, 'linux_mangohud': True})
+                self.assertEqual(mh, ['/usr/bin/mangohud', *base])
+
+                both = launcher.run_command({**launcher.APP_DEFAULTS, 'linux_gamemode': True, 'linux_mangohud': True})
+                self.assertEqual(both, ['/usr/bin/gamemoderun', '/usr/bin/mangohud', *base])
+
+            with mock.patch.object(launcher.shutil, 'which', return_value=None):
+                missing = launcher.run_command({**launcher.APP_DEFAULTS, 'linux_gamemode': True, 'linux_mangohud': True})
+                self.assertEqual(missing, base)
+
 
 if __name__ == '__main__':
     unittest.main()

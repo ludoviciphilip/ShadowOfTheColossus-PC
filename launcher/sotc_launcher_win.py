@@ -32,6 +32,7 @@ import zipfile
 import sotc_hardware
 import sotc_pad
 import sotc_search
+import sotc_steam
 import sotc_theme as theme
 import sotc_update
 
@@ -77,7 +78,7 @@ def settings_file():
 from sotc_modes import GAMES  # noqa: E402
 GAME_ID = 'CUSA08809'
 SYS_MODULES = ('libSceUlt.sprx', 'libSceNgs2.sprx')
-VERSION = '0.78'
+VERSION = '0.79.0'
 # sotc: the port version whose shader translation the cache holds (clear_shader_cache_after_update).
 # Raise it to the new VERSION in a release that changes how shaders are translated or stored
 # (shader_recompiler/, the SPIR-V emitters, vk_pipeline_serialization.cpp versions, cache_storage
@@ -159,9 +160,27 @@ def run_role(argv):
     return 0
 
 
-def run_command():
-    """The command that starts sotc.py: this executable when frozen, else Python."""
-    return [sys.executable, '--run'] if FROZEN else [sys.executable, str(PORT_DIR / 'sotc.py')]
+def linux_tool_path(name):
+    """Full path to an optional Linux helper command (gamemoderun, mangohud), else None."""
+    return shutil.which(name) if not IS_WINDOWS else None
+
+
+def run_command(settings=None):
+    """The command that starts sotc.py (prefixed with optional Linux wrappers when enabled)."""
+    cmd = [sys.executable, '--run'] if FROZEN else [sys.executable, str(PORT_DIR / 'sotc.py')]
+    if not IS_WINDOWS and settings:
+        prefix = []
+        if settings.get('linux_gamemode'):
+            gm = linux_tool_path('gamemoderun')
+            if gm:
+                prefix.append(gm)
+        if settings.get('linux_mangohud'):
+            mh = linux_tool_path('mangohud')
+            if mh:
+                prefix.append(mh)
+        if prefix:
+            return prefix + cmd
+    return cmd
 
 
 # ---------------------------------------------------------------------------------------------
@@ -227,7 +246,8 @@ APP_DEFAULTS = {'ui_language': '', 'game_dir': str(PORT_DIR.parent / GAME_ID), '
                 'auto_setup': True, 'dlc_dir': '', 'framegen': 'off', 'fg_hudless': True, 'fg_mult': '2',
                 'dlss_mode': 'quality', 'dlss_sharpen': '0', 'dlss_ui_sharpen': '3', 'dlss_sky_sharpen': '2',
                 'dlss_compare': False, 'hdr_sdr': False,
-                'check_updates': True, 'skip_version': '', 'play_mode': 'custom', 'exit_backup': True, 'news_seen': '', 'expert_view': False, 'windows_title_bar': False, 'game_monitor': '', 'minimize_to_tray': False}
+                'check_updates': True, 'skip_version': '', 'play_mode': 'custom', 'exit_backup': True, 'news_seen': '', 'expert_view': False, 'windows_title_bar': False, 'game_monitor': '', 'minimize_to_tray': False,
+                'linux_gamemode': False, 'linux_mangohud': False}
 # sotc: improvements that changed a default, by the version that changed it. Settings saved by an
 # older launcher get them once when this one first loads them (load_settings). Every release that
 # changes a default for the better adds its entry here.
@@ -1998,7 +2018,8 @@ class Launcher(sotc_search.SearchMixin, sotc_pad.PadMixin):
         info.grid(row=0, column=0, sticky='nw', padx=(0, 24))
         ttk.Label(info, text=_('Verificação', 'Ready check'), style='Section.TLabel').pack(anchor='w', pady=(0, 6))
         self.checks = {}
-        for key in ('game', 'dlc', 'sound', 'saves', 'gpu'):
+        check_keys = ('game', 'dlc', 'sound', 'saves', 'gpu') + (('linux_mem',) if not IS_WINDOWS else ())
+        for key in check_keys:
             self.checks[key] = ttk.Label(info, text='', justify='left', wraplength=self.px(440))
             self.checks[key].pack(anchor='w', pady=3)
         quick = ttk.Frame(body)
@@ -2643,6 +2664,29 @@ class Launcher(sotc_search.SearchMixin, sotc_pad.PadMixin):
         holder.grid(row=self.next_row(f), column=0, columnspan=2, sticky='w', pady=(6, 0))
         ttk.Button(holder, text=_('Pasta do port', 'Port folder'), command=lambda: self.open_path(DATA_DIR)).pack(side='left')
         ttk.Button(holder, text=_('Limpar cache de shaders', 'Clear shader cache'), command=self.clear_cache).pack(side='left', padx=(6, 0))
+        steam_btn = ttk.Button(holder, text=_('Adicionar ao Steam', 'Add to Steam'), command=self.add_to_steam)
+        steam_btn.pack(side='left', padx=(6, 0))
+        self.index_entry(
+            steam_btn,
+            _('Adicionar ao Steam', 'Add to Steam'),
+            _('Adiciona o jogo como não-Steam com capa e ícone do seu dump (Desktop e Steam Deck).',
+              'Adds the game as a non-Steam shortcut with cover and icon from your dump (Desktop & Steam Deck).'),
+            key='add_to_steam',
+        )
+        if not IS_WINDOWS:
+            self.section(f, 'Linux')
+            gm_hint = _('Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir.',
+                        'Enables Feral GameMode when starting the game (performance CPU governor and I/O priority). Applies the next time the game starts.')
+            if not linux_tool_path('gamemoderun'):
+                gm_hint = _('Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale gamemode)',
+                            'Enables Feral GameMode when starting the game (performance CPU governor and I/O priority). Applies the next time the game starts. (not found on PATH — install gamemode)')
+            self.check(f, 'linux_gamemode', _('Usar GameMode (gamemoderun)', 'Use GameMode (gamemoderun)'), gm_hint)
+            mh_hint = _('Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir.',
+                        'Shows FPS, frametime and GPU/CPU usage through MangoHud on Linux. Applies the next time the game starts.')
+            if not linux_tool_path('mangohud'):
+                mh_hint = _('Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale mangohud)',
+                            'Shows FPS, frametime and GPU/CPU usage through MangoHud on Linux. Applies the next time the game starts. (not found on PATH — install mangohud)')
+            self.check(f, 'linux_mangohud', _('Usar MangoHud (overlay de desempenho)', 'Use MangoHud (performance overlay)'), mh_hint)
         self.section(f, _('Diagnóstico', 'Diagnostics'))
         self.check(f, 'show_fps', _('FPS no registro (a cada 5 s)', 'FPS in the log (every 5 s)'))
         self.check(f, 'dlss_compare', _('Comparar DLSS com FSR 1 (F9)', 'Compare DLSS with FSR 1 (F9)'),
@@ -2713,7 +2757,18 @@ class Launcher(sotc_search.SearchMixin, sotc_pad.PadMixin):
         count = dlc_count(self.var('dlc_dir').get(), serial)
         dlc = (_('✓ DLC: {} instalada(s)', '✓ DLC: {} installed').format(count) if count
                else _('• Sem DLC', '• No DLC'))
-        for key, text in (('game', game), ('dlc', dlc), ('sound', sound), ('saves', save), ('gpu', self.gpu_text)):
+        pairs = [('game', game), ('dlc', dlc), ('sound', sound), ('saves', save), ('gpu', self.gpu_text)]
+        if 'linux_mem' in self.checks:
+            uffd = linux_userfaultfd_status()
+            if uffd is True:
+                linux_mem = _('✓ Memória Linux: userfaultfd ativo', '✓ Linux memory: userfaultfd active')
+            elif uffd is False:
+                linux_mem = _('• Memória Linux: userfaultfd desativado (usando SIGSEGV) — opcional: sudo sysctl -w vm.unprivileged_userfaultfd=1',
+                              '• Linux memory: userfaultfd disabled (using SIGSEGV) — optional: sudo sysctl -w vm.unprivileged_userfaultfd=1')
+            else:
+                linux_mem = ''
+            pairs.append(('linux_mem', linux_mem))
+        for key, text in pairs:
             self.checks[key].configure(text=text, foreground=MUTED if text.startswith('•') else
                                        '#d9b441' if text.startswith('⚠') else '#d36b5c' if text.startswith('✗') else TEXT)
         if not self.process:
@@ -3972,7 +4027,7 @@ class Launcher(sotc_search.SearchMixin, sotc_pad.PadMixin):
         try:
             env = game_environment(self.app)
             env['SOTC_EVENT_LOG'] = start_event_log(user_dir(self.app), self.app, env)
-            self.process = subprocess.Popen(run_command(), cwd=PORT_DIR, env=env,
+            self.process = subprocess.Popen(run_command(self.app), cwd=PORT_DIR, env=env,
                                             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                             stderr=subprocess.STDOUT, **GAME_PROCESS_FLAGS)
         except OSError as error:
@@ -4134,6 +4189,36 @@ class Launcher(sotc_search.SearchMixin, sotc_pad.PadMixin):
                                                   'Shortcut created on the desktop.'))
         else:
             self.messagebox.showerror('Shadow of the Colossus', result.stderr.decode(errors='replace')[:400])
+
+    def add_to_steam(self):
+        self.collect()
+        exe_q, start_q, launch_opts = sotc_steam.steam_launch_spec(
+            IS_WINDOWS, FROZEN, os.environ.get('APPIMAGE', ''), sys.executable, PORT_DIR)
+        try:
+            result = sotc_steam.add_to_steam(
+                exe_q, start_q, launch_options=launch_opts,
+                game_dir=self.app.get('game_dir', ''),
+                fallback_icon=self.game_icon_png())
+        except (OSError, ValueError) as error:
+            self.messagebox.showerror('Shadow of the Colossus', str(error))
+            return
+        if not result['updated']:
+            self.messagebox.showwarning('Shadow of the Colossus', _(
+                'Nenhuma pasta de usuário do Steam foi encontrada. Abra o Steam pelo menos uma vez neste PC e tente novamente.',
+                'No Steam user folder was found. Open Steam at least once on this PC and try again.'))
+            return
+        accounts = len(result['updated'])
+        if result['artwork']:
+            msg = _(
+                'Atalho adicionado ao Steam com capa, banner e ícone do jogo ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.',
+                'Shortcut added to Steam with cover, banner and game icon ({} account(s)). Restart Steam for it to appear in your library.'
+            ).format(accounts)
+        else:
+            msg = _(
+                'Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.',
+                'Shortcut added to Steam ({} account(s)). Restart Steam for it to appear in your library.'
+            ).format(accounts)
+        self.messagebox.showinfo('Shadow of the Colossus', msg)
 
     # sotc: self-update from the GitHub releases (sotc_update.py).
     def check_updates(self, manual):
@@ -4306,6 +4391,19 @@ def linux_max_map_count(path='/proc/sys/vm/max_map_count'):
         return None
 
 
+def linux_userfaultfd_status(path='/proc/sys/vm/unprivileged_userfaultfd'):
+    """True when unprivileged userfaultfd is enabled, False when 0, None if unknown."""
+    try:
+        raw = Path(path).read_text(encoding='utf-8').strip()
+    except OSError:
+        return None
+    if raw == '1':
+        return True
+    if raw == '0':
+        return False
+    return None
+
+
 def free_commit_gb():
     """Memory Windows/Linux can still give programs (RAM + page/swap), in GB; None if unknown."""
     if not IS_WINDOWS:
@@ -4356,7 +4454,7 @@ def play_without_window(settings):
     env = game_environment(settings)
     env['SOTC_EVENT_LOG'] = start_event_log(log_dir, settings, env)
     with open_session_log(log_dir) as log:
-        process = subprocess.Popen(run_command(), cwd=PORT_DIR, env=env,
+        process = subprocess.Popen(run_command(settings), cwd=PORT_DIR, env=env,
                                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, creationflags=NO_WINDOW)
         for raw in iter(process.stdout.readline, b''):

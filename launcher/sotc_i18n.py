@@ -1298,3 +1298,70 @@ TRANSLATIONS['es']['O limite do kernel vm.max_map_count está em {} (recomendado
 TRANSLATIONS['zh']['O limite do kernel vm.max_map_count está em {} (recomendado: 262144 ou maior). Com um limite baixo, a reserva de memória do jogo pode falhar ao abrir ou durante el jogo.\n\nPara aumentar agora:\n  sudo sysctl -w vm.max_map_count=1048576\nPara tornar permanente:\n  echo "vm.max_map_count=1048576" | sudo tee /etc/sysctl.d/99-sotc.conf\n\nAbrir o jogo mesmo assim?'] = '内核限制 vm.max_map_count 当前为 {}（建议：262144 或更高）。限制过低时，游戏内存分配可能在启动或游玩过程中失败。\n\n立即提高：\n  sudo sysctl -w vm.max_map_count=1048576\n永久生效：\n  echo "vm.max_map_count=1048576" | sudo tee /etc/sysctl.d/99-sotc.conf\n\n仍要启动游戏吗？'
 TRANSLATIONS['ko']['O limite do kernel vm.max_map_count está em {} (recomendado: 262144 ou maior). Com um limite baixo, a reserva de memória do jogo pode falhar ao abrir ou durante el jogo.\n\nPara aumentar agora:\n  sudo sysctl -w vm.max_map_count=1048576\nPara tornar permanente:\n  echo "vm.max_map_count=1048576" | sudo tee /etc/sysctl.d/99-sotc.conf\n\nAbrir o jogo mesmo assim?'] = '커널 제한 vm.max_map_count 값이 {}입니다(권장: 262144 이상). 제한이 낮으면 게임 시작 시 또는 플레이 중에 메모리 할당이 실패할 수 있습니다.\n\n지금 늘리기:\n  sudo sysctl -w vm.max_map_count=1048576\n영구 적용:\n  echo "vm.max_map_count=1048576" | sudo tee /etc/sysctl.d/99-sotc.conf\n\n그래도 게임을 시작할까요?'
 TRANSLATIONS['ru']['O limite do kernel vm.max_map_count está em {} (recomendado: 262144 ou maior). Com um limite baixo, a reserva de memória do jogo pode falhar ao abrir ou durante o jogo.\n\nPara aumentar agora:\n  sudo sysctl -w vm.max_map_count=1048576\nPara tornar permanente:\n  echo "vm.max_map_count=1048576" | sudo tee /etc/sysctl.d/99-sotc.conf\n\nAbrir o jogo mesmo assim?'] = 'Ограничение ядра vm.max_map_count сейчас равно {} (рекомендуется 262144 или выше). При низком значении выделение памяти игры может завершиться ошибкой при запуске или во время игры.\n\nУвеличить сейчас:\n  sudo sysctl -w vm.max_map_count=1048576\nСделать постоянным:\n  echo "vm.max_map_count=1048576" | sudo tee /etc/sysctl.d/99-sotc.conf\n\nВсё равно запустить игру?'
+
+# Linux GameMode, MangoHud, and userfaultfd check.
+TRANSLATIONS['es']['Usar GameMode (gamemoderun)'] = 'Usar GameMode (gamemoderun)'
+TRANSLATIONS['zh']['Usar GameMode (gamemoderun)'] = '使用 GameMode (gamemoderun)'
+TRANSLATIONS['ko']['Usar GameMode (gamemoderun)'] = 'GameMode 사용 (gamemoderun)'
+TRANSLATIONS['ru']['Usar GameMode (gamemoderun)'] = 'Использовать GameMode (gamemoderun)'
+
+TRANSLATIONS['es']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir.'] = 'Activa Feral GameMode al abrir el juego (gobernador de CPU en performance y prioridad de E/S). Se aplica la próxima vez que se abra el juego.'
+TRANSLATIONS['zh']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir.'] = '启动游戏时启用 Feral GameMode（将 CPU 调度器设为 performance 并提高 I/O 优先级）。下次启动游戏时生效。'
+TRANSLATIONS['ko']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir.'] = '게임을 실행할 때 Feral GameMode를 켭니다(CPU 거버너를 performance로 설정하고 I/O 우선순위를 높임). 다음 게임 실행 때 적용됩니다.'
+TRANSLATIONS['ru']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir.'] = 'Включает Feral GameMode при запуске игры (режим CPU performance и приоритет ввода-вывода). Применяется при следующем запуске игры.'
+
+TRANSLATIONS['es']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale gamemode)'] = 'Activa Feral GameMode al abrir el juego (gobernador de CPU en performance y prioridad de E/S). Se aplica la próxima vez que se abra el juego. (no encontrado en PATH — instala gamemode)'
+TRANSLATIONS['zh']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale gamemode)'] = '启动游戏时启用 Feral GameMode（将 CPU 调度器设为 performance 并提高 I/O 优先级）。下次启动游戏时生效。（未在 PATH 中找到 — 请安装 gamemode）'
+TRANSLATIONS['ko']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale gamemode)'] = '게임을 실행할 때 Feral GameMode를 켭니다(CPU 거버너를 performance로 설정하고 I/O 우선순위를 높임). 다음 게임 실행 때 적용됩니다. (PATH에서 찾을 수 없음 — gamemode를 설치하세요)'
+TRANSLATIONS['ru']['Ativa o Feral GameMode ao abrir o jogo (governador de CPU em performance e prioridade de E/S). Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale gamemode)'] = 'Включает Feral GameMode при запуске игры (режим CPU performance и приоритет ввода-вывода). Применяется при следующем запуске игры. (не найден в PATH — установите gamemode)'
+
+TRANSLATIONS['es']['Usar MangoHud (overlay de desempenho)'] = 'Usar MangoHud (overlay de rendimiento)'
+TRANSLATIONS['zh']['Usar MangoHud (overlay de desempenho)'] = '使用 MangoHud（性能叠加层）'
+TRANSLATIONS['ko']['Usar MangoHud (overlay de desempenho)'] = 'MangoHud 사용 (성능 오버레이)'
+TRANSLATIONS['ru']['Usar MangoHud (overlay de desempenho)'] = 'Использовать MangoHud (оверлей производительности)'
+
+TRANSLATIONS['es']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir.'] = 'Muestra FPS, frametime y uso de GPU/CPU mediante MangoHud en Linux. Se aplica la próxima vez que se abra el juego.'
+TRANSLATIONS['zh']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir.'] = '在 Linux 上通过 MangoHud 显示 FPS、帧时间和 GPU/CPU 占用。下次启动游戏时生效。'
+TRANSLATIONS['ko']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir.'] = 'Linux에서 MangoHud로 FPS, 프레임 시간 및 GPU/CPU 사용량을 표시합니다. 다음 게임 실행 때 적용됩니다.'
+TRANSLATIONS['ru']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir.'] = 'Показывает FPS, время кадра и загрузку GPU/CPU через MangoHud в Linux. Применяется при следующем запуске игры.'
+
+TRANSLATIONS['es']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale mangohud)'] = 'Muestra FPS, frametime y uso de GPU/CPU mediante MangoHud en Linux. Se aplica la próxima vez que se abra el juego. (no encontrado en PATH — instala mangohud)'
+TRANSLATIONS['zh']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale mangohud)'] = '在 Linux 上通过 MangoHud 显示 FPS、帧时间和 GPU/CPU 占用。下次启动游戏时生效。（未在 PATH 中找到 — 请安装 mangohud）'
+TRANSLATIONS['ko']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale mangohud)'] = 'Linux에서 MangoHud로 FPS, 프레임 시간 및 GPU/CPU 사용량을 표시합니다. 다음 게임 실행 때 적용됩니다. (PATH에서 찾을 수 없음 — mangohud를 설치하세요)'
+TRANSLATIONS['ru']['Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale mangohud)'] = 'Показывает FPS, время кадра и загрузку GPU/CPU через MangoHud в Linux. Применяется при следующем запуске игры. (не найден в PATH — установите mangohud)'
+
+TRANSLATIONS['es']['✓ Memória Linux: userfaultfd ativo'] = '✓ Memoria Linux: userfaultfd activo'
+TRANSLATIONS['zh']['✓ Memória Linux: userfaultfd ativo'] = '✓ Linux 内存：userfaultfd 已启用'
+TRANSLATIONS['ko']['✓ Memória Linux: userfaultfd ativo'] = '✓ Linux 메모리: userfaultfd 활성'
+TRANSLATIONS['ru']['✓ Memória Linux: userfaultfd ativo'] = '✓ Память Linux: userfaultfd активен'
+
+TRANSLATIONS['es']['• Memória Linux: userfaultfd desativado (usando SIGSEGV) — opcional: sudo sysctl -w vm.unprivileged_userfaultfd=1'] = '• Memoria Linux: userfaultfd desactivado (usando SIGSEGV) — opcional: sudo sysctl -w vm.unprivileged_userfaultfd=1'
+TRANSLATIONS['zh']['• Memória Linux: userfaultfd desativado (usando SIGSEGV) — opcional: sudo sysctl -w vm.unprivileged_userfaultfd=1'] = '• Linux 内存：userfaultfd 已禁用（正使用 SIGSEGV）— 可选：sudo sysctl -w vm.unprivileged_userfaultfd=1'
+TRANSLATIONS['ko']['• Memória Linux: userfaultfd desativado (usando SIGSEGV) — opcional: sudo sysctl -w vm.unprivileged_userfaultfd=1'] = '• Linux 메모리: userfaultfd 비활성화됨 (SIGSEGV 사용 중) — 선택 사항: sudo sysctl -w vm.unprivileged_userfaultfd=1'
+TRANSLATIONS['ru']['• Memória Linux: userfaultfd desativado (usando SIGSEGV) — opcional: sudo sysctl -w vm.unprivileged_userfaultfd=1'] = '• Память Linux: userfaultfd отключён (используется SIGSEGV) — опционально: sudo sysctl -w vm.unprivileged_userfaultfd=1'
+
+# One-click Steam non-Steam shortcut & dump artwork.
+TRANSLATIONS['es']['Adicionar ao Steam'] = 'Añadir a Steam'
+TRANSLATIONS['zh']['Adicionar ao Steam'] = '添加到 Steam'
+TRANSLATIONS['ko']['Adicionar ao Steam'] = 'Steam에 추가'
+TRANSLATIONS['ru']['Adicionar ao Steam'] = 'Добавить в Steam'
+
+TRANSLATIONS['es']['Adiciona o jogo como não-Steam com capa e ícone do seu dump (Desktop e Steam Deck).'] = 'Añade el juego como no-Steam con portada e icono de tu volcado (escritorio y Steam Deck).'
+TRANSLATIONS['zh']['Adiciona o jogo como não-Steam com capa e ícone do seu dump (Desktop e Steam Deck).'] = '将游戏作为非 Steam 游戏添加，并附带游戏转储中的封面和图标（桌面端和 Steam Deck）。'
+TRANSLATIONS['ko']['Adiciona o jogo como não-Steam com capa e ícone do seu dump (Desktop e Steam Deck).'] = '덤프의 커버와 아이콘을 포함해 비-Steam 게임으로 추가합니다(데스크톱 및 Steam Deck).'
+TRANSLATIONS['ru']['Adiciona o jogo como não-Steam com capa e ícone do seu dump (Desktop e Steam Deck).'] = 'Добавляет игру как стороннюю в Steam с обложкой и значком из вашего дампа (ПК и Steam Deck).'
+
+TRANSLATIONS['es']['Nenhuma pasta de usuário do Steam foi encontrada. Abra o Steam pelo menos uma vez neste PC e tente novamente.'] = 'No se encontró ninguna carpeta de usuario de Steam. Abre Steam al menos una vez en este PC e inténtalo de nuevo.'
+TRANSLATIONS['zh']['Nenhuma pasta de usuário do Steam foi encontrada. Abra o Steam pelo menos uma vez neste PC e tente novamente.'] = '未找到 Steam 用户文件夹。请在此电脑上至少打开一次 Steam 后重试。'
+TRANSLATIONS['ko']['Nenhuma pasta de usuário do Steam foi encontrada. Abra o Steam pelo menos uma vez neste PC e tente novamente.'] = 'Steam 사용자 폴더를 찾을 수 없습니다. 이 PC에서 Steam을 한 번 이상 실행한 뒤 다시 시도하세요.'
+TRANSLATIONS['ru']['Nenhuma pasta de usuário do Steam foi encontrada. Abra o Steam pelo menos uma vez neste PC e tente novamente.'] = 'Папка пользователя Steam не найдена. Запустите Steam на этом ПК хотя бы один раз и повторите попытку.'
+
+TRANSLATIONS['es']['Atalho adicionado ao Steam com capa, banner e ícone do jogo ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = 'Acceso directo añadido a Steam con portada, banner e icono del juego ({} cuenta(s)). Reinicia Steam para que aparezca en tu biblioteca.'
+TRANSLATIONS['zh']['Atalho adicionado ao Steam com capa, banner e ícone do jogo ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = '已将快捷方式及游戏封面、横幅和图标添加到 Steam（{} 个账号）。请重启 Steam 以在库中显示。'
+TRANSLATIONS['ko']['Atalho adicionado ao Steam com capa, banner e ícone do jogo ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = '게임 커버, 배너 및 아이콘과 함께 Steam 바로가기가 추가되었습니다({}개 계정). 라이브러리에 표시되도록 Steam을 재시작하세요.'
+TRANSLATIONS['ru']['Atalho adicionado ao Steam com capa, banner e ícone do jogo ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = 'Ярлык добавлен в Steam вместе с обложкой, баннером и значком игры (аккаунтов: {}). Перезапустите Steam, чтобы игра появилась в библиотеке.'
+
+TRANSLATIONS['es']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = 'Acceso directo añadido a Steam ({} cuenta(s)). Reinicia Steam para que aparezca en tu biblioteca.'
+TRANSLATIONS['zh']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = '已将快捷方式添加到 Steam（{} 个账号）。请重启 Steam 以在库中显示。'
+TRANSLATIONS['ko']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = 'Steam 바로가기가 추가되었습니다({}개 계정). 라이브러리에 표시되도록 Steam을 재시작하세요.'
+TRANSLATIONS['ru']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = 'Ярлык добавлен в Steam (аккаунтов: {}). Перезапустите Steam, чтобы игра появилась в библиотеке.'
