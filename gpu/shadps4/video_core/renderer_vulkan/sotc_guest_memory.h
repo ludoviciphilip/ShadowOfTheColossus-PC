@@ -7,6 +7,7 @@
 // the pages in RAM, so only the chunks in use are. Each chunk is a buffer the GPU can copy to and
 // from: what it writes there is the game's memory at once, with no staging buffer and no memcpy.
 // SOTC_PC_MEMORY=1 turns it on (the device extension is asked for only then).
+// SOTC_PC_MEMORY_MAX_MB caps pinned chunk memory with GPU-tick-tracked LRU eviction on OnSubmit().
 
 #pragma once
 
@@ -15,6 +16,7 @@
 
 namespace Vulkan {
 class Instance;
+class Scheduler;
 }
 namespace VideoCore {
 struct Buffer;
@@ -23,10 +25,10 @@ struct Buffer;
 namespace Vulkan::SotcGuestMemory {
 
 /// After the device exists (Rasterizer): on with the extension, the backing view found later.
-void Init(const Instance& instance);
+void Init(const Instance& instance, Scheduler& scheduler);
 
 /// At each submission: looks for the backing view until the game has mapped memory, then
-/// checks the import once (the first chunk). True when the game's memory can be used in place.
+/// checks the import once (the first chunk), and evicts cold chunks if over SOTC_PC_MEMORY_MAX_MB.
 bool Ready();
 
 /// True when the game's memory can be used in place (no lookup).

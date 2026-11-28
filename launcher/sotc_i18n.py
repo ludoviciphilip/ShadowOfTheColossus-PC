@@ -1365,3 +1365,59 @@ TRANSLATIONS['es']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam p
 TRANSLATIONS['zh']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = '已将快捷方式添加到 Steam（{} 个账号）。请重启 Steam 以在库中显示。'
 TRANSLATIONS['ko']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = 'Steam 바로가기가 추가되었습니다({}개 계정). 라이브러리에 표시되도록 Steam을 재시작하세요.'
 TRANSLATIONS['ru']['Atalho adicionado ao Steam ({} conta(s)). Reinicie o Steam para aparecer na biblioteca.'] = 'Ярлык добавлен в Steam (аккаунтов: {}). Перезапустите Steam, чтобы игра появилась в библиотеке.'
+
+# PC direct memory modes and Linux GPU CPU affinity.
+TRANSLATIONS['es']['Memória direta do PC (texturas)'] = 'Memoria directa del PC (texturas)'
+TRANSLATIONS['zh']['Memória direta do PC (texturas)'] = 'PC 直接内存（纹理）'
+TRANSLATIONS['ko']['Memória direta do PC (texturas)'] = 'PC 직접 메모리(텍스처)'
+TRANSLATIONS['ru']['Memória direta do PC (texturas)'] = 'Прямая память ПК (текстуры)'
+
+TRANSLATIONS['es']['Automático (24 GB+ pré-importado)'] = 'Automático (24 GB+ preimportado)'
+TRANSLATIONS['zh']['Automático (24 GB+ pré-importado)'] = '自动（24 GB+ 预导入）'
+TRANSLATIONS['ko']['Automático (24 GB+ pré-importado)'] = '자동 (24 GB+ 사전 가져오기)'
+TRANSLATIONS['ru']['Automático (24 GB+ pré-importado)'] = 'Автоматически (предимпорт от 24 ГБ)'
+
+TRANSLATIONS['es']['Sob demanda — 3 GB LRU (ideal para 16 GB RAM)'] = 'Bajo demanda — 3 GB LRU (ideal para 16 GB RAM)'
+TRANSLATIONS['zh']['Sob demanda — 3 GB LRU (ideal para 16 GB RAM)'] = '按需 — 3 GB LRU（适合 16 GB 内存）'
+TRANSLATIONS['ko']['Sob demanda — 3 GB LRU (ideal para 16 GB RAM)'] = '필요 시 — 3 GB LRU (16 GB RAM 권장)'
+TRANSLATIONS['ru']['Sob demanda — 3 GB LRU (ideal para 16 GB RAM)'] = 'По запросу — 3 ГБ LRU (для 16 ГБ ОЗУ)'
+
+TRANSLATIONS['es']['Pré-importar tudo (~10 GB RAM fixa)'] = 'Preimportar todo (~10 GB RAM fija)'
+TRANSLATIONS['zh']['Pré-importar tudo (~10 GB RAM fixa)'] = '全部预导入（约 10 GB 固定内存）'
+TRANSLATIONS['ko']['Pré-importar tudo (~10 GB RAM fixa)'] = '모두 사전 가져오기 (고정 RAM ~10 GB)'
+TRANSLATIONS['ru']['Pré-importar tudo (~10 GB RAM fixa)'] = 'Предимпорт всей памяти (~10 ГБ ОЗУ)'
+
+TRANSLATIONS['es']['Permite que a GPU copie texturas e tabelas direto da memória do jogo (SOTC_PC_MEMORY + TEX_DIRECT/GATHER), reduzindo engasgos ao entrar em áreas. Em 16 GB de RAM, "Sob demanda — 3 GB LRU" limita a memória fixa e descarta blocos frios com segurança.'] = 'Permite que la GPU copie texturas y tablas directamente de la memoria del juego (SOTC_PC_MEMORY + TEX_DIRECT/GATHER), reduciendo tirones al entrar en zonas. Con 16 GB de RAM, "Bajo demanda — 3 GB LRU" limita la memoria fijada y libera bloques fríos de forma segura.'
+TRANSLATIONS['zh']['Permite que a GPU copie texturas e tabelas direto da memória do jogo (SOTC_PC_MEMORY + TEX_DIRECT/GATHER), reduzindo engasgos ao entrar em áreas. Em 16 GB de RAM, "Sob demanda — 3 GB LRU" limita a memória fixa e descarta blocos frios com segurança.'] = '允许 GPU 直接从游戏内存复制纹理和表（SOTC_PC_MEMORY + TEX_DIRECT/GATHER），减少进入新区域时的卡顿。在 16 GB 内存上，“按需 — 3 GB LRU”会限制固定内存并安全释放冷块。'
+TRANSLATIONS['ko']['Permite que a GPU copie texturas e tabelas direto da memória do jogo (SOTC_PC_MEMORY + TEX_DIRECT/GATHER), reduzindo engasgos ao entrar em áreas. Em 16 GB de RAM, "Sob demanda — 3 GB LRU" limita a memória fixa e descarta blocos frios com segurança.'] = 'GPU가 게임 메모리에서 직접 텍스처와 테이블을 복사해 구역 진입 시 끊김을 줄입니다(SOTC_PC_MEMORY + TEX_DIRECT/GATHER). 16 GB RAM에서는 "필요 시 — 3 GB LRU"가 고정 메모리를 제한하고 오래된 청크를 안전하게 해제합니다.'
+TRANSLATIONS['ru']['Permite que a GPU copie texturas e tabelas direto da memória do jogo (SOTC_PC_MEMORY + TEX_DIRECT/GATHER), reduzindo engasgos ao entrar em áreas. Em 16 GB de RAM, "Sob demanda — 3 GB LRU" limita a memória fixa e descarta blocos frios com segurança.'] = 'Позволяет GPU копировать текстуры и таблицы напрямую из памяти игры (SOTC_PC_MEMORY + TEX_DIRECT/GATHER), снижая фризы при входе в зоны. При 16 ГБ ОЗУ режим «По запросу — 3 ГБ LRU» ограничивает закреплённую память и безопасно освобождает неиспользуемые блоки.'
+
+TRANSLATIONS['es']['Afinidade de CPU da GPU (SOTC_PIN)'] = 'Afinidad de CPU de la GPU (SOTC_PIN)'
+TRANSLATIONS['zh']['Afinidade de CPU da GPU (SOTC_PIN)'] = 'GPU 线程 CPU 亲和性 (SOTC_PIN)'
+TRANSLATIONS['ko']['Afinidade de CPU da GPU (SOTC_PIN)'] = 'GPU 스레드 CPU 친화도 (SOTC_PIN)'
+TRANSLATIONS['ru']['Afinidade de CPU da GPU (SOTC_PIN)'] = 'Привязка потоков GPU к CPU (SOTC_PIN)'
+
+TRANSLATIONS['es']['Desligado (agendador do Linux)'] = 'Desactivado (planificador de Linux)'
+TRANSLATIONS['zh']['Desligado (agendador do Linux)'] = '关闭（使用 Linux 调度器）'
+TRANSLATIONS['ko']['Desligado (agendador do Linux)'] = '끄기 (Linux 스케줄러)'
+TRANSLATIONS['ru']['Desligado (agendador do Linux)'] = 'Отключено (планировщик Linux)'
+
+TRANSLATIONS['es']['1 núcleo exclusivo (GpuDraw)'] = '1 núcleo exclusivo (GpuDraw)'
+TRANSLATIONS['zh']['1 núcleo exclusivo (GpuDraw)'] = '1 个独占核心 (GpuDraw)'
+TRANSLATIONS['ko']['1 núcleo exclusivo (GpuDraw)'] = '전용 코어 1개 (GpuDraw)'
+TRANSLATIONS['ru']['1 núcleo exclusivo (GpuDraw)'] = '1 выделенное ядро (GpuDraw)'
+
+TRANSLATIONS['es']['2 núcleos exclusivos (GpuDraw + GpuComm)'] = '2 núcleos exclusivos (GpuDraw + GpuComm)'
+TRANSLATIONS['zh']['2 núcleos exclusivos (GpuDraw + GpuComm)'] = '2 个独占核心 (GpuDraw + GpuComm)'
+TRANSLATIONS['ko']['2 núcleos exclusivos (GpuDraw + GpuComm)'] = '전용 코어 2개 (GpuDraw + GpuComm)'
+TRANSLATIONS['ru']['2 núcleos exclusivos (GpuDraw + GpuComm)'] = '2 выделенных ядра (GpuDraw + GpuComm)'
+
+TRANSLATIONS['es']['3 núcleos exclusivos (GpuDraw + GpuComm + GpuReco)'] = '3 núcleos exclusivos (GpuDraw + GpuComm + GpuReco)'
+TRANSLATIONS['zh']['3 núcleos exclusivos (GpuDraw + GpuComm + GpuReco)'] = '3 个独占核心 (GpuDraw + GpuComm + GpuReco)'
+TRANSLATIONS['ko']['3 núcleos exclusivos (GpuDraw + GpuComm + GpuReco)'] = '전용 코어 3개 (GpuDraw + GpuComm + GpuReco)'
+TRANSLATIONS['ru']['3 núcleos exclusivos (GpuDraw + GpuComm + GpuReco)'] = '3 выделенных ядра (GpuDraw + GpuComm + GpuReco)'
+
+TRANSLATIONS['es']['Prende threads pesadas da GPU em núcleos físicos exclusivos (deixando o irmão SMT vazio) quando o jogo passa de 25 FPS. No Linux costuma empatar ou perder no desktop ocioso com 6 núcleos; teste em 1, 2 ou 3 núcleos.'] = 'Fija los hilos pesados de la GPU a núcleos físicos exclusivos (dejando vacío el hermano SMT) cuando el juego supera los 25 FPS. En Linux suele empatar o perder en escritorios con 6 núcleos en reposo; prueba 1, 2 o 3 núcleos.'
+TRANSLATIONS['zh']['Prende threads pesadas da GPU em núcleos físicos exclusivos (deixando o irmão SMT vazio) quando o jogo passa de 25 FPS. No Linux costuma empatar ou perder no desktop ocioso com 6 núcleos; teste em 1, 2 ou 3 núcleos.'] = '当帧率超过 25 FPS 时，将繁重的 GPU 线程绑定到独占物理核心（保留 SMT 超线程空闲）。在空闲的 6 核 Linux 桌面上通常持平或略慢；可测试 1、2 或 3 个核心。'
+TRANSLATIONS['ko']['Prende threads pesadas da GPU em núcleos físicos exclusivos (deixando o irmão SMT vazio) quando o jogo passa de 25 FPS. No Linux costuma empatar ou perder no desktop ocioso com 6 núcleos; teste em 1, 2 ou 3 núcleos.'] = '게임이 25 FPS를 넘으면 무거운 GPU 스레드를 전용 물리 코어에 고정합니다(SMT 형제 코어 비움). 유휴 상태의 6코어 Linux 데스크톱에서는 보통 비슷하거나 약간 느릴 수 있어 1, 2 또는 3코어로 테스트해 보세요.'
+TRANSLATIONS['ru']['Prende threads pesadas da GPU em núcleos físicos exclusivos (deixando o irmão SMT vazio) quando o jogo passa de 25 FPS. No Linux costuma empatar ou perder no desktop ocioso com 6 núcleos; teste em 1, 2 ou 3 núcleos.'] = 'Закрепляет тяжёлые потоки GPU за выделенными физическими ядрами (оставляя второй поток SMT свободным) при частоте выше 25 FPS. На 6-ядерном ПК под Linux в простое результат часто равен планировщику или чуть ниже; проверьте 1, 2 или 3 ядра.'

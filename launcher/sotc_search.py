@@ -46,6 +46,8 @@ WORDS = {
     'fx_sunshadows': 'sombras sol shadows sun cascata fps cpu desempenho performance',
     'linux_gamemode': 'gamemode gamemoderun feral governor cpu performance linux',
     'linux_mangohud': 'mangohud overlay hud fps frametime gpu linux',
+    'linux_pin': 'sotc_pin afinidade affinity cpu nucleo core smt thread linux',
+    'pc_memory_mode': 'pc memory direct memoria direta lru chunks texturas tex_direct gather 16gb 24gb',
     'add_to_steam': 'steam atalho shortcut non-steam nao-steam capa arte deck grid biblioteca',
     'check_updates': 'atualizacao update versao',
     'page:saves': 'saves save exportar importar backup jogo salvo',

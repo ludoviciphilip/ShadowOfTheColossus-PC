@@ -5,7 +5,7 @@
 # Usage:
 #   bash tools/linux_bench_ab.sh [preset ...]
 # Presets:
-#   baseline pc_memory pc_memory_preimport pin1 pin2 pin3 no_protect_fast vis_direct
+#   baseline pc_memory pc_memory_3gb pc_memory_preimport pin1 pin2 pin3 no_protect_fast vis_direct
 # Environment:
 #   SOTC_GAME_DIR   game dump directory (auto-read from user/launcher_settings.json if unset)
 #   BENCH_SECONDS   seconds per run (default 90)
@@ -31,7 +31,7 @@ bench_env "$MODES"
 if (($# > 0)); then
     PRESETS=("$@")
 else
-    PRESETS=(baseline pc_memory pin2 pin3 no_protect_fast)
+    PRESETS=(baseline pc_memory_3gb pin2 pin3 no_protect_fast)
 fi
 
 preset_env() {
@@ -40,6 +40,8 @@ preset_env() {
             echo "" ;;
         pc_memory)
             echo "SOTC_PC_MEMORY=1 SOTC_TEX_DIRECT=1 SOTC_TEX_GATHER=1" ;;
+        pc_memory_3gb)
+            echo "SOTC_PC_MEMORY=1 SOTC_PC_MEMORY_MAX_MB=3072 SOTC_TEX_DIRECT=1 SOTC_TEX_GATHER=1" ;;
         pc_memory_preimport)
             echo "SOTC_PC_MEMORY=1 SOTC_PC_MEMORY_PREIMPORT=1 SOTC_TEX_DIRECT=1 SOTC_TEX_GATHER=1" ;;
         pin1)

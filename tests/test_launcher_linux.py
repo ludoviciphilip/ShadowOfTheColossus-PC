@@ -184,6 +184,34 @@ class LinuxDisplayTests(unittest.TestCase):
                 missing = launcher.run_command({**launcher.APP_DEFAULTS, 'linux_gamemode': True, 'linux_mangohud': True})
                 self.assertEqual(missing, base)
 
+    def test_pc_memory_mode_and_linux_pin_environment(self):
+        with mock.patch.object(launcher, 'IS_WINDOWS', False), \
+             mock.patch.object(launcher, '_LINUX_DISPLAYS', []):
+            with mock.patch.object(launcher.sotc_hardware, 'memory_gb', return_value=16):
+                env_auto_16 = launcher.game_environment({**launcher.APP_DEFAULTS, 'pc_memory_mode': 'auto'})
+                self.assertNotIn('SOTC_PC_MEMORY', env_auto_16)
+
+                env_ondemand = launcher.game_environment({**launcher.APP_DEFAULTS, 'pc_memory_mode': 'ondemand'})
+                self.assertEqual(env_ondemand.get('SOTC_PC_MEMORY'), '1')
+                self.assertEqual(env_ondemand.get('SOTC_PC_MEMORY_MAX_MB'), '3072')
+                self.assertEqual(env_ondemand.get('SOTC_TEX_DIRECT'), '1')
+                self.assertEqual(env_ondemand.get('SOTC_TEX_GATHER'), '1')
+                self.assertNotIn('SOTC_PC_MEMORY_PREIMPORT', env_ondemand)
+
+            with mock.patch.object(launcher.sotc_hardware, 'memory_gb', return_value=32):
+                env_auto_32 = launcher.game_environment({**launcher.APP_DEFAULTS, 'pc_memory_mode': 'auto'})
+                self.assertEqual(env_auto_32.get('SOTC_PC_MEMORY'), '1')
+                self.assertEqual(env_auto_32.get('SOTC_PC_MEMORY_PREIMPORT'), '1')
+
+                env_off = launcher.game_environment({**launcher.APP_DEFAULTS, 'pc_memory_mode': 'off'})
+                self.assertNotIn('SOTC_PC_MEMORY', env_off)
+
+            for mode in ('1', '2', '3'):
+                env_pin = launcher.game_environment({**launcher.APP_DEFAULTS, 'linux_pin': mode})
+                self.assertEqual(env_pin.get('SOTC_PIN'), mode)
+            env_pin0 = launcher.game_environment({**launcher.APP_DEFAULTS, 'linux_pin': '0'})
+            self.assertNotIn('SOTC_PIN', env_pin0)
+
 
 if __name__ == '__main__':
     unittest.main()

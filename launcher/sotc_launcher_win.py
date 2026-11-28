@@ -247,7 +247,7 @@ APP_DEFAULTS = {'ui_language': '', 'game_dir': str(PORT_DIR.parent / GAME_ID), '
                 'dlss_mode': 'quality', 'dlss_sharpen': '0', 'dlss_ui_sharpen': '3', 'dlss_sky_sharpen': '2',
                 'dlss_compare': False, 'hdr_sdr': False,
                 'check_updates': True, 'skip_version': '', 'play_mode': 'custom', 'exit_backup': True, 'news_seen': '', 'expert_view': False, 'windows_title_bar': False, 'game_monitor': '', 'minimize_to_tray': False,
-                'linux_gamemode': False, 'linux_mangohud': False}
+                'pc_memory_mode': 'auto', 'linux_gamemode': False, 'linux_mangohud': False, 'linux_pin': '0'}
 # sotc: improvements that changed a default, by the version that changed it. Settings saved by an
 # older launcher get them once when this one first loads them (load_settings). Every release that
 # changes a default for the better adds its entry here.
@@ -300,6 +300,18 @@ VRAM_USE = [('low', ('Econômico (placas de 4–6 GB)', 'Economy (4–6 GB cards
 VRAM_PROFILES = [('auto', ('Automático (pela placa)', 'Automatic (by the card)')),
                  ('light', ('Leve (placas de até 6 GB)', 'Light (cards up to 6 GB)')),
                  ('full', ('Completo (placas de 8 GB ou mais)', 'Full (8 GB cards or more)'))]
+PC_MEMORY_MODES = [
+    ('auto', ('Automático (24 GB+ pré-importado)', 'Automatic (24 GB+ pre-imported)')),
+    ('ondemand', ('Sob demanda — 3 GB LRU (ideal para 16 GB RAM)', 'On-demand — 3 GB LRU (best for 16 GB RAM)')),
+    ('preimport', ('Pré-importar tudo (~10 GB RAM fixa)', 'Pre-import all (~10 GB pinned RAM)')),
+    ('off', ('Desligado', 'Off')),
+]
+LINUX_PIN_MODES = [
+    ('0', ('Desligado (agendador do Linux)', 'Off (Linux scheduler)')),
+    ('3', ('1 núcleo exclusivo (GpuDraw)', '1 exclusive core (GpuDraw)')),
+    ('2', ('2 núcleos exclusivos (GpuDraw + GpuComm)', '2 exclusive cores (GpuDraw + GpuComm)')),
+    ('1', ('3 núcleos exclusivos (GpuDraw + GpuComm + GpuReco)', '3 exclusive cores (GpuDraw + GpuComm + GpuReco)')),
+]
 LIGHT_VRAM_BELOW_MB = 7500
 VRAM_AUTO_LIGHT_RATIO = 0.85
 VRAM_WARN_RATIO = 0.95
@@ -1366,8 +1378,15 @@ def game_environment(s):
     env.setdefault('SOTC_IMAGE_DEDICATED', '1')
     # sotc: 0.72.2 (T48): new textures read by the GPU in the game's memory (no CPU copy at the
     # first entry of an area; forest 14 -> 9-10 slow frames). The game's 10 GB are imported at
-    # boot (~2.6 s) and stay pinned in RAM: only with 24 GB or more.
-    if (sotc_hardware.memory_gb() or 0) >= 24:
+    # boot (~2.6 s) and stay pinned in RAM: automatic only with 24 GB or more; 16 GB PCs can opt
+    # into 'ondemand' with a 3 GB LRU chunk budget (SOTC_PC_MEMORY_MAX_MB=3072).
+    pc_mem = s.get('pc_memory_mode', 'auto')
+    if pc_mem == 'ondemand':
+        env.setdefault('SOTC_PC_MEMORY', '1')
+        env.setdefault('SOTC_PC_MEMORY_MAX_MB', '3072')
+        env.setdefault('SOTC_TEX_DIRECT', '1')
+        env.setdefault('SOTC_TEX_GATHER', '1')
+    elif pc_mem == 'preimport' or (pc_mem == 'auto' and (sotc_hardware.memory_gb() or 0) >= 24):
         env.setdefault('SOTC_PC_MEMORY', '1')
         env.setdefault('SOTC_PC_MEMORY_PREIMPORT', '1')
         env.setdefault('SOTC_TEX_DIRECT', '1')
@@ -1375,6 +1394,8 @@ def game_environment(s):
         # a time) or across two import chunks are gathered by the GPU instead of copied by the
         # CPU (~13 GB a session; user's route 17 Nov: area entry 7-9 frames over 50 ms -> 1).
         env.setdefault('SOTC_TEX_GATHER', '1')
+    if not IS_WINDOWS and str(s.get('linux_pin', '0')) in ('1', '2', '3'):
+        env.setdefault('SOTC_PIN', str(s['linux_pin']))
     # sotc: "Maximum" in PS4 Pro mode exhausted the game's page pool within minutes at the Shrine
     # (0x1a371, 22 Oct) until tabnul's page allocator fix (PR #288, sotc_modes.py POOL_FIX): an
     # hour without a crash with it (26 Oct). Experimental there; SOTC_MAX_IN_PRO=0 brings back High.
@@ -2380,6 +2401,14 @@ class Launcher(sotc_search.SearchMixin, sotc_pad.PadMixin):
                    'How far the game fills the card memory before it frees textures and buffers. Default: '
                    'frees from 60%. On 8 GB cards or more, "High" or "Maximum" avoids reloading textures '
                    '(less stutter). On an out-of-memory error, go back one level.'))
+        self.row(f, _('Memória direta do PC (texturas)', 'PC direct memory (textures)'),
+                 self.choice(f, 'pc_memory_mode', PC_MEMORY_MODES),
+                 _('Permite que a GPU copie texturas e tabelas direto da memória do jogo (SOTC_PC_MEMORY + '
+                   'TEX_DIRECT/GATHER), reduzindo engasgos ao entrar em áreas. Em 16 GB de RAM, '
+                   '"Sob demanda — 3 GB LRU" limita a memória fixa e descarta blocos frios com segurança.',
+                   'Lets the GPU copy textures and tables straight from game memory (SOTC_PC_MEMORY + '
+                   'TEX_DIRECT/GATHER), cutting area-entry hitches. On 16 GB RAM, "On-demand — 3 GB LRU" '
+                   'caps pinned memory and safely evicts cold chunks.'))
         self.section(f, _('Grama', 'Grass'))
         self.row(f, _('Sombras da grama', 'Grass shadows'), self.choice(f, 'grass_shadows', GRASS_SHADOWS),
                  _('Até onde a grama projeta sombra. No PS4 só até ~8 m: ao cavalgar, uma faixa de grama '
@@ -2687,6 +2716,14 @@ class Launcher(sotc_search.SearchMixin, sotc_pad.PadMixin):
                 mh_hint = _('Mostra FPS, frametime e uso de GPU/CPU pelo MangoHud no Linux. Vale na próxima vez que o jogo abrir. (não encontrado no PATH — instale mangohud)',
                             'Shows FPS, frametime and GPU/CPU usage through MangoHud on Linux. Applies the next time the game starts. (not found on PATH — install mangohud)')
             self.check(f, 'linux_mangohud', _('Usar MangoHud (overlay de desempenho)', 'Use MangoHud (performance overlay)'), mh_hint)
+            self.row(f, _('Afinidade de CPU da GPU (SOTC_PIN)', 'GPU CPU affinity (SOTC_PIN)'),
+                     self.choice(f, 'linux_pin', LINUX_PIN_MODES),
+                     _('Prende threads pesadas da GPU em núcleos físicos exclusivos (deixando o irmão SMT vazio) '
+                       'quando o jogo passa de 25 FPS. No Linux costuma empatar ou perder no desktop ocioso com '
+                       '6 núcleos; teste em 1, 2 ou 3 núcleos.',
+                       'Pins heavy GPU threads to exclusive physical cores (keeping their SMT sibling idle) '
+                       'above 25 FPS. On Linux this often ties or loses on an idle 6-core desktop; test 1, 2 or '
+                       '3 cores.'))
         self.section(f, _('Diagnóstico', 'Diagnostics'))
         self.check(f, 'show_fps', _('FPS no registro (a cada 5 s)', 'FPS in the log (every 5 s)'))
         self.check(f, 'dlss_compare', _('Comparar DLSS com FSR 1 (F9)', 'Compare DLSS with FSR 1 (F9)'),
