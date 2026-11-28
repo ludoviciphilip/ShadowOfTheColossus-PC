@@ -1782,13 +1782,14 @@ static void choose_tsc(void) {
 /* sotc: SSE4a and red-zone patches of the eboot (gpu/sotc), described by scripts/sotc_cpu.py. */
 #define SOTC_TRAMPOLINE_SIZE (UINT64_C(16) << 20)
 #ifndef _WIN32
-/* sotc (Linux): SOTC_PIN=1, the Windows thread_placement above on Linux, opt-in. Same policy: the
- * GPU draw, command processor and recorder threads each get one logical CPU of cores 1-3 with its
- * SMT sibling left empty, every other thread of the process the remaining cores; released while
- * the game shows under 25 frames a second (loading screens use every thread). Off by default on
- * Linux: Ryzen 5 5500 (6 cores / 12 threads, GTX 1070), attract demo, interleaved A/B runs: +4.5%
- * with the desktop busy (33.2 -> 34.7 FPS) but -5% on an idle desktop (42.3 -> 40.2): the four
- * BPE job workers then share 3 cores, and the Linux scheduler spreads the threads well enough.
+/* sotc (Linux): SOTC_PIN=1|2|3, the Windows thread_placement above on Linux, opt-in:
+ *   =1: pin GpuDraw, GpuComm, GpuReco on 3 exclusive physical cores (cores 1-3, SMT sibling idle)
+ *   =2: pin GpuDraw, GpuComm on 2 exclusive cores (cores 1-2), leaving 4 full cores on a 6-core
+ *       CPU for the 4 BPE JobWorkers + GpuReco + rest
+ *   =3: pin GpuDraw only on 1 exclusive core (core 1), leaving 5 full cores for everything else
+ * Released while the game shows under 25 frames a second (loading screens use every thread).
+ * Off by default on Linux: Ryzen 5 5500 (6 cores / 12 threads, GTX 1070), attract demo:
+ * +4.5% with desktop busy (33.2 -> 34.7 FPS) vs -5% on idle desktop with SOTC_PIN=1 (42.3 -> 40.2).
  * Thread names are cut at 15 bytes on Linux ("shadPS4:GpuComm"), hence the shorter matches. */
 #include <dirent.h>
 #include <pthread.h>
@@ -1806,7 +1807,9 @@ static int core_of_cpu(int cpu) {
 static void *thread_placement_linux(void *unused) {
     (void)unused;
     const char *mode=getenv("SOTC_PIN");
-    if (!mode || mode[0]!='1') return NULL;
+    if (!mode || mode[0]=='0') return NULL;
+    const int pin_count = mode[0]=='1' ? 3 : mode[0]=='2' ? 2 : mode[0]=='3' ? 1 : 0;
+    if (!pin_count) return NULL;
     cpu_set_t process_mask; CPU_ZERO(&process_mask);
     if (sched_getaffinity(0,sizeof(process_mask),&process_mask)) return NULL;
     /* Cores in order of their lowest logical CPU; each one's logical CPUs. */
@@ -1821,10 +1824,10 @@ static void *thread_placement_linux(void *unused) {
         CPU_SET(cpu,&core_cpus[c]);
     }
     for (int c=0;c<core_count;++c) if (CPU_COUNT(&core_cpus[c])<2) smt=0;
-    (void)smt; /* opt-in: no SMT / core-count gate beyond room for the three threads */
-    if (core_count<4) return NULL;
+    (void)smt; /* opt-in: no SMT / core-count gate beyond room for pinned cores + 1 rest core */
+    if (core_count<pin_count+1) return NULL;
     cpu_set_t pinned[3], others=process_mask;
-    for (int i=0;i<3;++i) {
+    for (int i=0;i<pin_count;++i) {
         CPU_ZERO(&pinned[i]);
         for (int cpu=0; cpu<CPU_SETSIZE; ++cpu)
             if (CPU_ISSET(cpu,&core_cpus[i+1])) { CPU_SET(cpu,&pinned[i]); break; }
@@ -1857,18 +1860,23 @@ static void *thread_placement_linux(void *unused) {
             FILE *f=fopen(path,"r");
             if (f) { if (!fgets(name,sizeof(name),f)) name[0]=0; fclose(f); }
             const cpu_set_t *mask=playing ? &others : &process_mask;
-            for (int i=0;i<3;++i) if (strstr(name,wanted[i])) { if (playing) mask=&pinned[i]; ++placed; }
+            for (int i=0;i<pin_count;++i) if (strstr(name,wanted[i])) { if (playing) mask=&pinned[i]; ++placed; }
             sched_setaffinity(tid,sizeof(*mask),mask);
         }
         closedir(dir);
-        if (!told && playing && placed==3) {
+        if (!told && playing && placed==pin_count) {
             told=1;
-            int at[3]={0,0,0};
-            for (int i=0;i<3;++i) for (int cpu=0;cpu<CPU_SETSIZE;++cpu) if (CPU_ISSET(cpu,&pinned[i])) { at[i]=cpu; break; }
+            char cpus_buf[32]="";
+            size_t off=0;
+            for (int i=0;i<pin_count;++i) {
+                int cpu_id=0;
+                for (int cpu=0;cpu<CPU_SETSIZE;++cpu) if (CPU_ISSET(cpu,&pinned[i])) { cpu_id=cpu; break; }
+                off+=(size_t)snprintf(cpus_buf+off,sizeof(cpus_buf)-off,"%s%d",i ? ", " : "",cpu_id);
+            }
             unsigned long long rest=0;
             for (int cpu=0;cpu<64;++cpu) if (CPU_ISSET(cpu,&others)) rest|=1ull<<cpu;
-            fprintf(stderr,"Runtime: thread placement: GPU draw / command processor / recorder on logical CPUs %d, %d, %d (own cores); the rest on mask 0x%llx\n",
-                    at[0],at[1],at[2],rest);
+            fprintf(stderr,"Runtime: thread placement (SOTC_PIN=%d): %d GPU thread(s) on logical CPUs [%s]; the rest on mask 0x%llx\n",
+                    pin_count,pin_count,cpus_buf,rest);
         }
     }
     return NULL;

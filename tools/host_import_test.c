@@ -1,21 +1,31 @@
 /* sotc: can the GPU use the game's memory in place? (prototype for the "PC memory model")
  *
- * Maps a pagefile-backed section twice, as src/runtime_memory.c maps the game's direct memory
- * (a backing view and a guest view that replaces a placeholder), imports the backing view into
+ * Maps backing storage twice, as src/runtime_memory.c maps the game's direct memory
+ * (a backing view and a guest view over the same storage), imports the backing view into
  * Vulkan with VK_EXT_external_memory_host and checks, for several sizes:
  *   1. the import succeeds and which memory types accept it;
  *   2. a GPU write (vkCmdFillBuffer) is seen by the CPU through the guest view;
  *   3. a CPU write through the guest view is read by the GPU (vkCmdCopyBuffer into a
  *      device-local buffer and back);
  *   4. GPU read bandwidth of imported memory against device-local memory.
- * Build: clang -O2 tools/host_import_test.c -o out/host_import_test.exe -lvulkan-1 -lonecore (CLANG64). */
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+ * Build (Windows CLANG64): clang -O2 tools/host_import_test.c -o out/host_import_test.exe -lvulkan-1 -lonecore
+ * Build (Linux):           gcc -O2 tools/host_import_test.c -o out/host_import_test -lvulkan
+ */
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <vulkan/vulkan.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <time.h>
+#include <unistd.h>
+#endif
 
 #define CHECK(call) do { VkResult r_ = (call); if (r_ != VK_SUCCESS) { printf("  %s failed: %d\n", #call, r_); return 1; } } while (0)
 
@@ -27,6 +37,19 @@ static uint32_t queue_family;
 static VkCommandPool pool;
 static PFN_vkGetMemoryHostPointerPropertiesEXT get_host_pointer_properties;
 static VkPhysicalDeviceMemoryProperties memory;
+
+static double now_sec(void) {
+#ifdef _WIN32
+    LARGE_INTEGER f, t;
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&t);
+    return (double)t.QuadPart / (double)f.QuadPart;
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
+#endif
+}
 
 static int setup(void) {
     VkApplicationInfo app = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO, .apiVersion = VK_API_VERSION_1_3};
@@ -83,14 +106,12 @@ static double run(void (*record)(VkCommandBuffer, void *), void *arg) {
     record(cb, arg);
     vkEndCommandBuffer(cb);
     VkSubmitInfo si = {.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &cb};
-    LARGE_INTEGER f, a, b;
-    QueryPerformanceFrequency(&f);
-    QueryPerformanceCounter(&a);
+    double a = now_sec();
     vkQueueSubmit(queue, 1, &si, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue);
-    QueryPerformanceCounter(&b);
+    double b = now_sec();
     vkFreeCommandBuffers(device, pool, 1, &cb);
-    return (double)(b.QuadPart - a.QuadPart) / f.QuadPart;
+    return b - a;
 }
 
 typedef struct { VkBuffer src, dst; VkDeviceSize offset, size; uint32_t value; } Op;
@@ -103,14 +124,32 @@ static void record_copy(VkCommandBuffer cb, void *p) {
 
 static int test(uint64_t size) {
     printf("\n== %llu MiB\n", (unsigned long long)(size >> 20));
+    unsigned char *backing = NULL;
+    unsigned char *guest = NULL;
+#ifdef _WIN32
     HANDLE section = CreateFileMapping2(INVALID_HANDLE_VALUE, NULL, FILE_MAP_ALL_ACCESS, PAGE_EXECUTE_READWRITE, SEC_COMMIT,
                                         size, NULL, NULL, 0);
     if (!section) { printf("  section failed %lu\n", GetLastError()); return 1; }
-    unsigned char *backing = MapViewOfFile3(section, GetCurrentProcess(), NULL, 0, size, 0, PAGE_READWRITE, NULL, 0);
+    backing = MapViewOfFile3(section, GetCurrentProcess(), NULL, 0, size, 0, PAGE_READWRITE, NULL, 0);
     void *placeholder = VirtualAlloc2(NULL, NULL, size, MEM_RESERVE | MEM_RESERVE_PLACEHOLDER, PAGE_NOACCESS, NULL, 0);
-    unsigned char *guest = placeholder ? MapViewOfFile3(section, GetCurrentProcess(), placeholder, 0, size, MEM_REPLACE_PLACEHOLDER,
-                                                        PAGE_READWRITE, NULL, 0) : NULL;
+    guest = placeholder ? MapViewOfFile3(section, GetCurrentProcess(), placeholder, 0, size, MEM_REPLACE_PLACEHOLDER,
+                                         PAGE_READWRITE, NULL, 0) : NULL;
     if (!backing || !guest) { printf("  views failed %lu\n", GetLastError()); return 1; }
+#else
+    int fd = memfd_create("sotc-host-import-test", MFD_CLOEXEC);
+    if (fd < 0 || ftruncate(fd, (off_t)size) != 0) { perror("memfd/ftruncate"); if (fd >= 0) close(fd); return 1; }
+    void *b_map = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *g_map = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (b_map == MAP_FAILED || g_map == MAP_FAILED) {
+        perror("mmap");
+        if (b_map != MAP_FAILED) munmap(b_map, size);
+        if (g_map != MAP_FAILED) munmap(g_map, size);
+        close(fd);
+        return 1;
+    }
+    backing = (unsigned char *)b_map;
+    guest = (unsigned char *)g_map;
+#endif
 
     VkMemoryHostPointerPropertiesEXT props = {.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT};
     VkResult r = get_host_pointer_properties(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, backing, &props);
@@ -127,12 +166,10 @@ static int test(uint64_t size) {
     VkMemoryAllocateInfo mai = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, .pNext = &import, .allocationSize = size,
                                 .memoryTypeIndex = type};
     VkDeviceMemory imported;
-    LARGE_INTEGER f, a, b;
-    QueryPerformanceFrequency(&f);
-    QueryPerformanceCounter(&a);
+    double a = now_sec();
     r = vkAllocateMemory(device, &mai, NULL, &imported);
-    QueryPerformanceCounter(&b);
-    printf("  import: %d (%.1f ms)\n", r, 1000.0 * (b.QuadPart - a.QuadPart) / f.QuadPart);
+    double b = now_sec();
+    printf("  import: %d (%.1f ms)\n", r, 1000.0 * (b - a));
     if (r != VK_SUCCESS) return 1;
     VkBuffer host_buffer;
     if (buffer_on(imported, size, &host_buffer, 1)) return 1;
@@ -178,9 +215,15 @@ static int test(uint64_t size) {
     vkFreeMemory(device, local, NULL);
     vkDestroyBuffer(device, host_buffer, NULL);
     vkFreeMemory(device, imported, NULL);
+#ifdef _WIN32
     UnmapViewOfFile2(GetCurrentProcess(), guest, 0);
     UnmapViewOfFile(backing);
     CloseHandle(section);
+#else
+    munmap(guest, size);
+    munmap(backing, size);
+    close(fd);
+#endif
     return 0;
 }
 

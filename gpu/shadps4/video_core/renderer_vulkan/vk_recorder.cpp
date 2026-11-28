@@ -11,6 +11,9 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#ifdef __linux__
+#include <sched.h>
+#endif
 #include <unistd.h>
 #endif
 
@@ -873,6 +876,15 @@ void CommandRecorder::ConsumerLoop(std::stop_token stoken) {
         if (GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask) &&
             process_mask) {
             count = std::popcount(static_cast<u64>(process_mask));
+        }
+#elif defined(__linux__)
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
+            const int n = CPU_COUNT(&mask);
+            if (n > 0) {
+                count = static_cast<u32>(n);
+            }
         }
 #endif
         return count;

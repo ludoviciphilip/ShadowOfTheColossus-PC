@@ -76,7 +76,7 @@ typedef struct { const char *name; uint64_t count, ticks; } LockSite;
 #define LOCK_SITES 32
 static LockSite read_sites[LOCK_SITES] __attribute__((unused)), write_sites[LOCK_SITES] __attribute__((unused));
 static __thread const char *lock_site_name, *lock_write_site;
-__attribute__((unused)) static void lock_site_add(LockSite *sites, const char *name, uint64_t ticks) {
+static void lock_site_add(LockSite *sites, const char *name, uint64_t ticks) {
     if (!name) return;
     for (int i=0;i<LOCK_SITES;++i) {
         const char *n=__atomic_load_n(&sites[i].name,__ATOMIC_ACQUIRE);
@@ -90,6 +90,26 @@ __attribute__((unused)) static void lock_site_add(LockSite *sites, const char *n
             __atomic_add_fetch(&sites[i].ticks,ticks,__ATOMIC_RELAXED);
             return;
         }
+    }
+}
+/* Since the last call, the sites readers waited longest in and writers held the lock longest in:
+ * "name count/ms" by descending ms. */
+static void lock_sites_format(LockSite *sites, char *out, size_t capacity, double ms) {
+    LockSite copy[LOCK_SITES];
+    int n=0;
+    for (int i=0;i<LOCK_SITES;++i) {
+        const char *name=__atomic_load_n(&sites[i].name,__ATOMIC_ACQUIRE);
+        if (!name) break;
+        copy[n]=(LockSite){name,__atomic_exchange_n(&sites[i].count,0,__ATOMIC_RELAXED),__atomic_exchange_n(&sites[i].ticks,0,__ATOMIC_RELAXED)};
+        if (copy[n].count) ++n;
+    }
+    size_t used=0; out[0]=0;
+    for (int k=0;k<6 && n;++k) {
+        int best=0;
+        for (int i=1;i<n;++i) if (copy[i].ticks>copy[best].ticks) best=i;
+        int w=snprintf(out+used,capacity-used,"%s%s %llu/%.1f",k ? ", " : "",copy[best].name,(unsigned long long)copy[best].count,(double)copy[best].ticks*ms);
+        if (w<0 || (size_t)w>=capacity-used) break;
+        used+=(size_t)w; copy[best]=copy[--n];
     }
 }
 #ifdef _WIN32
@@ -173,26 +193,6 @@ void runtime_memory_lock_stats(uint64_t *writes, double *wait_ms, double *hold_m
     *hold_ms=(double)__atomic_exchange_n(&lock_hold_ticks,0,__ATOMIC_RELAXED)*ms;
     *worst_ms=(double)__atomic_exchange_n(&lock_worst_wait_ticks,0,__ATOMIC_RELAXED)*ms;
 }
-/* Since the last call, the sites readers waited longest in and writers held the lock longest in:
- * "name count/ms" by descending ms. */
-static void lock_sites_format(LockSite *sites, char *out, size_t capacity, double ms) {
-    LockSite copy[LOCK_SITES];
-    int n=0;
-    for (int i=0;i<LOCK_SITES;++i) {
-        const char *name=__atomic_load_n(&sites[i].name,__ATOMIC_ACQUIRE);
-        if (!name) break;
-        copy[n]=(LockSite){name,__atomic_exchange_n(&sites[i].count,0,__ATOMIC_RELAXED),__atomic_exchange_n(&sites[i].ticks,0,__ATOMIC_RELAXED)};
-        if (copy[n].count) ++n;
-    }
-    size_t used=0; out[0]=0;
-    for (int k=0;k<6 && n;++k) {
-        int best=0;
-        for (int i=1;i<n;++i) if (copy[i].ticks>copy[best].ticks) best=i;
-        int w=snprintf(out+used,capacity-used,"%s%s %llu/%.1f",k ? ", " : "",copy[best].name,(unsigned long long)copy[best].count,(double)copy[best].ticks*ms);
-        if (w<0 || (size_t)w>=capacity-used) break;
-        used+=(size_t)w; copy[best]=copy[--n];
-    }
-}
 void runtime_memory_lock_sites(char *readers, char *writers, size_t capacity) {
     LARGE_INTEGER f; QueryPerformanceFrequency(&f);
     const double ms=1000.0/(double)f.QuadPart;
@@ -209,21 +209,67 @@ void runtime_memory_lock_stats2(double *worst_hold_ms, uint64_t *read_waits, dou
 }
 #else
 static pthread_rwlock_t lock=PTHREAD_RWLOCK_INITIALIZER;
-static void rw_rdlock(void) { pthread_rwlock_rdlock(&lock); }
+static uint64_t lock_writes, lock_wait_ns, lock_hold_ns, lock_worst_wait_ns, lock_worst_hold_ns;
+static uint64_t lock_read_wait_ns, lock_read_waits;
+static __thread uint64_t lock_held_since;
+static uint64_t lock_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC,&ts);
+    return (uint64_t)ts.tv_sec*UINT64_C(1000000000)+(uint64_t)ts.tv_nsec;
+}
+static void rw_rdlock(void) {
+    if (pthread_rwlock_tryrdlock(&lock)==0) return;
+    const uint64_t start=lock_ns();
+    pthread_rwlock_rdlock(&lock);
+    const uint64_t waited=lock_ns()-start;
+    __atomic_add_fetch(&lock_read_wait_ns,waited,__ATOMIC_RELAXED);
+    __atomic_add_fetch(&lock_read_waits,1,__ATOMIC_RELAXED);
+    lock_site_add(read_sites,lock_site_name,waited);
+}
 static void rw_rdunlock(void) { pthread_rwlock_unlock(&lock); }
-static void rw_wrlock(void) { pthread_rwlock_wrlock(&lock); }
-static void rw_wrunlock(void) { pthread_rwlock_unlock(&lock); }
+static void rw_wrlock(void) {
+    uint64_t waited=0, now;
+    if (pthread_rwlock_trywrlock(&lock)!=0) {
+        const uint64_t start=lock_ns();
+        pthread_rwlock_wrlock(&lock);
+        now=lock_ns();
+        waited=now-start;
+    } else {
+        now=lock_ns();
+    }
+    lock_held_since=now;
+    __atomic_add_fetch(&lock_writes,1,__ATOMIC_RELAXED);
+    if (waited) {
+        __atomic_add_fetch(&lock_wait_ns,waited,__ATOMIC_RELAXED);
+        if (waited>lock_worst_wait_ns) lock_worst_wait_ns=waited;
+    }
+}
+static void rw_wrunlock(void) {
+    const uint64_t held=lock_ns()-lock_held_since;
+    __atomic_add_fetch(&lock_hold_ns,held,__ATOMIC_RELAXED);
+    if (held>lock_worst_hold_ns) lock_worst_hold_ns=held;
+    lock_site_add(write_sites,lock_write_site,held);
+    pthread_rwlock_unlock(&lock);
+}
 void runtime_memory_lock_stats(uint64_t *writes, double *wait_ms, double *hold_ms, double *worst_ms) {
-    *writes=0; *wait_ms=*hold_ms=*worst_ms=0;
+    const double ms=1e-6;
+    *writes=__atomic_exchange_n(&lock_writes,0,__ATOMIC_RELAXED);
+    *wait_ms=(double)__atomic_exchange_n(&lock_wait_ns,0,__ATOMIC_RELAXED)*ms;
+    *hold_ms=(double)__atomic_exchange_n(&lock_hold_ns,0,__ATOMIC_RELAXED)*ms;
+    *worst_ms=(double)__atomic_exchange_n(&lock_worst_wait_ns,0,__ATOMIC_RELAXED)*ms;
 }
 void runtime_memory_lock_stats2(double *worst_hold_ms, uint64_t *read_waits, double *read_wait_ms) {
-    *worst_hold_ms=*read_wait_ms=0; *read_waits=0;
+    const double ms=1e-6;
+    *worst_hold_ms=(double)__atomic_exchange_n(&lock_worst_hold_ns,0,__ATOMIC_RELAXED)*ms;
+    *read_waits=__atomic_exchange_n(&lock_read_waits,0,__ATOMIC_RELAXED);
+    *read_wait_ms=(double)__atomic_exchange_n(&lock_read_wait_ns,0,__ATOMIC_RELAXED)*ms;
 }
 void runtime_memory_carve_stats(uint64_t *mib, uint64_t *runs, double *split_ms, double *worst_ms, double *other_ms) {
     *mib=*runs=0; *split_ms=*worst_ms=*other_ms=0;
 }
 void runtime_memory_lock_sites(char *readers, char *writers, size_t capacity) {
-    if (capacity) readers[0]=writers[0]=0;
+    lock_sites_format(read_sites,readers,capacity,1e-6);
+    lock_sites_format(write_sites,writers,capacity,1e-6);
 }
 #endif
 static __thread unsigned exclusive_depth;
@@ -2104,8 +2150,43 @@ static int protect_fast(uintptr_t address, uint64_t size, int read, int write) {
 }
 #else
 static int protect_fast(uintptr_t address, uint64_t size, int read, int write) {
-    (void)address; (void)size; (void)read; (void)write;
-    return 0;
+    static int on=-1, span=-1;
+    if (on<0) { const char *v=getenv("SOTC_PROTECT_FAST"); on=!(v && v[0]=='0') && region_log_on(); }
+    if (span<0) { const char *v=getenv("SOTC_PROTECT_SPAN"); span=!(v && v[0]=='0'); }
+    if (!on || exclusive_depth || (runtime_disabled_optimizations & 1) || !size || size>UINTPTR_MAX-address) return 0;
+    const uint64_t before=__atomic_load_n(&table_generation,__ATOMIC_SEQ_CST);
+    struct { uintptr_t a, b; int prot; } piece[8];
+    int pieces=0;
+    for (uintptr_t at=address, end=address+size; at<end;) {
+        const CachedRegion *c=cached_region_q(at,end);
+        uintptr_t next;
+        if (c) {
+            next=c->end<end ? c->end : end;
+            if (c->kind!=KIND_RESERVED) {
+                const int guest=host_prot(c->prot);
+                const int want=(read ? PROT_READ : 0)|(write ? PROT_WRITE|PROT_READ : 0)|(guest & PROT_EXEC);
+                const int prot=guest & want;
+                if (pieces>0 && piece[pieces-1].b==at && piece[pieces-1].prot==prot) {
+                    piece[pieces-1].b=next;
+                } else {
+                    if (pieces==8) return 0;
+                    piece[pieces].a=at; piece[pieces].b=next; piece[pieces].prot=prot;
+                    ++pieces;
+                }
+            }
+        } else {
+            uintptr_t lo, hi;
+            if (!gap_fast(at,end,&lo,&hi)) return 0;
+            next=hi<end ? hi : end;
+        }
+        if (!span && next<end) return 0;
+        at=next;
+    }
+    for (int i=0;i<pieces;++i) {
+        if (host_protect(piece[i].a,piece[i].b-piece[i].a,piece[i].prot)) return 0;
+    }
+    const uint64_t now=__atomic_load_n(&table_generation,__ATOMIC_SEQ_CST);
+    return (now==before && !(now & 1)) || region_unchanged(address,address+size,before & ~(uint64_t)1,now);
 }
 #endif
 void runtime_memory_gpu_protect(uintptr_t address, uint64_t size, int read, int write) {
